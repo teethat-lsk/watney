@@ -1,58 +1,51 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:pocketbase/pocketbase.dart';
 import 'package:watney/src/customer.dart';
 import 'package:watney/src/customers.dart';
 
+import 'fixtures.dart';
+
 void main() {
   test('reads the customers the backend lets the reader see, with their route and meters', () async {
-    final pb = PocketBase(
-      'http://pb.test',
-      httpClientFactory: () => MockClient((request) async {
-        expect(
-          request.url.queryParameters['expand'],
-          'route,meters_via_customer',
-        );
-        return http.Response(
-          jsonEncode({
-            'page': 1,
-            'perPage': 1000,
-            'totalItems': 1,
-            'totalPages': 1,
-            'items': [
-              {
-                'id': 'c1',
-                'house_no': '12/3',
-                'moo': 4,
-                'name': 'นายมานะ ใจดี',
-                'phone': '0812345678',
-                'status': 'water_cut',
-                'route': 'r1',
-                'expand': {
-                  'route': {'id': 'r1', 'name': 'สาย 1'},
-                  'meters_via_customer': [
-                    {
-                      'id': 'm1',
-                      'number': 'WM-001',
-                      'size': '3/4',
-                      'installed_on': '2026-01-15 00:00:00.000Z',
-                      'start_reading': 12.5,
-                      'customer': 'c1',
-                      'status': 'removed',
-                    },
-                  ],
-                },
+    final pb = fakeBackend((request) {
+      expect(
+        request.url.queryParameters['expand'],
+        'route,meters_via_customer',
+      );
+      return (
+        200,
+        {
+          'page': 1,
+          'perPage': 1000,
+          'totalItems': 1,
+          'totalPages': 1,
+          'items': [
+            {
+              'id': 'c1',
+              'house_no': '12/3',
+              'moo': 4,
+              'name': 'นายมานะ ใจดี',
+              'phone': '0812345678',
+              'status': 'water_cut',
+              'route': 'r1',
+              'expand': {
+                'route': {'id': 'r1', 'name': 'สาย 1'},
+                'meters_via_customer': [
+                  {
+                    'id': 'm1',
+                    'number': 'WM-001',
+                    'size': '3/4',
+                    'installed_on': '2026-01-15 00:00:00.000Z',
+                    'start_reading': 12.5,
+                    'customer': 'c1',
+                    'status': 'removed',
+                  },
+                ],
               },
-            ],
-          }),
-          200,
-          headers: {'content-type': 'application/json; charset=utf-8'},
-        );
-      }),
-    );
+            },
+          ],
+        },
+      );
+    });
 
     final [customer] = await PocketBaseCustomers(pb).routeCustomers();
 

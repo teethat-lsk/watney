@@ -4,6 +4,7 @@ import 'auth.dart';
 import 'customer.dart';
 import 'customer_screen.dart';
 import 'customers.dart';
+import 'labels.dart';
 import 'route_list.dart';
 
 /// The customers on the reader's routes, in walking order, with search.
@@ -11,12 +12,17 @@ class CustomerListScreen extends StatefulWidget {
   const CustomerListScreen({
     super.key,
     required this.reader,
-    required this.repository,
+    required this.customers,
+    required this.stillLoggedIn,
     required this.onLogout,
   });
 
   final MeterReader reader;
-  final CustomerRepository repository;
+  final CustomerRepository customers;
+
+  /// Checks the session with the backend before a reload; false sends the app
+  /// back to the login screen (the account was deactivated, say).
+  final Future<bool> Function() stillLoggedIn;
   final VoidCallback onLogout;
 
   @override
@@ -24,14 +30,16 @@ class CustomerListScreen extends StatefulWidget {
 }
 
 class _CustomerListScreenState extends State<CustomerListScreen> {
-  late Future<List<Customer>> _customers = _load();
+  late Future<List<Customer>> _customers = widget.customers.routeCustomers();
   var _query = '';
 
-  Future<List<Customer>> _load() async =>
-      routeList(await widget.repository.routeCustomers());
+  Future<List<Customer>> _recheckAndLoad() async {
+    if (!await widget.stillLoggedIn()) return const [];
+    return widget.customers.routeCustomers();
+  }
 
   Future<void> _reload() {
-    final reloading = _load();
+    final reloading = _recheckAndLoad();
     setState(() {
       _customers = reloading;
     });
@@ -63,7 +71,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           if (customers == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          final shown = search(customers, _query);
+          final shown = routeList(customers, query: _query);
           return Column(
             children: [
               Padding(
@@ -85,7 +93,7 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                             Padding(
                               padding: const EdgeInsets.all(24),
                               child: Text(
-                                customers.isEmpty
+                                _query.trim().isEmpty
                                     ? 'ไม่มีผู้ใช้น้ำในเส้นทางของคุณ'
                                     : 'ไม่พบผู้ใช้น้ำที่ค้นหา',
                                 textAlign: TextAlign.center,
@@ -128,9 +136,9 @@ class _CustomerTile extends StatelessWidget {
           if (meters.isNotEmpty) 'มาตร $meters',
         ].join(' · '),
       ),
-      trailing: customer.status == CustomerStatus.waterCut
-          ? const Chip(label: Text('ตัดน้ำ'))
-          : null,
+      trailing: customer.status == CustomerStatus.active
+          ? null
+          : Chip(label: Text(customerStatusLabels[customer.status]!)),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (context) => CustomerScreen(customer: customer),

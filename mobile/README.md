@@ -30,7 +30,7 @@ CI builds a debug APK on every push (the `watney-debug-apk` artifact) with the e
 
 A meter reader logs in with their staff account. The session is kept in Android's encrypted storage, so the app opens straight to their customers after a restart. On start it checks the stored session with the backend, so a deactivated account goes back to the login screen. Other roles can't use the app: the login is refused with a message.
 
-The customer list shows the customers on the reader's routes, in walking order: by route, then หมู่, then house number. Customers who are pending or cancelled have no meter to read, so they're left out. Search matches a name, a house number or a meter number. Tapping a customer opens their details and meters. The app is online only for now; pull down to reload the list.
+The customer list shows the customers on the reader's routes, in walking order: by route, then หมู่, then house number. Customers who are pending or cancelled have no meter to read, so the list leaves them out. Search matches a name, a house number or a meter number, and finds every customer on the reader's routes, cancelled ones too (they may still owe money). Tapping a customer opens their details and meters. The app is online only for now. Pull down to reload the list; the reload checks the session first, so a reader deactivated meanwhile goes back to the login screen.
 
 | File | What |
 |---|---|
@@ -38,9 +38,9 @@ The customer list shows the customers on the reader's routes, in walking order: 
 | `lib/src/auth.dart` | The `Auth` interface and its PocketBase implementation, with the session kept in a `SessionStore` |
 | `lib/src/customers.dart` | The `CustomerRepository` interface and its PocketBase implementation |
 | `lib/src/customer.dart`, `lib/src/route_list.dart` | Pure Dart: the customer model, walking order and search |
-| `lib/src/*_screen.dart` | The screens |
+| `lib/src/*_screen.dart`, `lib/src/labels.dart` | The screens, and the Thai labels they share |
 
-Tests use fakes of `Auth` and `CustomerRepository` for the screens (`test/app_test.dart`). The PocketBase implementations are tested with a fake HTTP client.
+Tests use fakes of `Auth` and `CustomerRepository` for the screens (`test/app_test.dart`). The PocketBase implementations are tested with a fake HTTP client (`fakeBackend` in `test/fixtures.dart`).
 
 `android/gradle.properties` caps the Gradle heap at 4 GB and stops an idle Gradle daemon after 15 minutes. The Flutter template's default is an 8 GB heap with a 3-hour idle time.
 

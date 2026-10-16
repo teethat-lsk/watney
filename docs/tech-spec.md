@@ -45,17 +45,17 @@ flowchart TB
 | Concern | Package | Version | Notes |
 |---|---|---|---|
 | Backend client | `pocketbase` (official Dart SDK) | pin to match server | Auth, records, files, realtime |
-| State management | `flutter_riverpod` | ^2.x | Testable, no `BuildContext` coupling (alt: `flutter_bloc`) |
+| State management | `flutter_riverpod` | ^3.x | Testable, no `BuildContext` coupling (alt: `flutter_bloc`). Not yet used: the field-app skeleton (#5) uses StatefulWidgets with interfaces passed in, until an issue needs more |
 | Local DB | `drift` + `sqlite3_flutter_libs` | ^2.x | Type-safe SQLite, reactive queries, outbox |
-| Routing | `go_router` | ^14.x | Declarative navigation |
+| Routing | `go_router` | ^18.x | Declarative navigation. Not yet used: `Navigator.push` suffices so far |
 | Camera / photo | `image_picker` + `image` | ^1.x / ^4.x | Camera-only capture + compression of the meter-dial photo |
 | Geolocation | `geolocator` | ^13.x | Best-effort GPS for trace-back |
 | Connectivity | `connectivity_plus` | ^6.x | Trigger sync when online |
 | ESC/POS commands | `esc_pos_utils_plus` | ^2.x | Build receipt byte stream (text, images, QR) |
 | Bluetooth print (Classic SPP) | `print_bluetooth_thermal` (or `blue_thermal_printer`) | ^1.x | Android Classic SPP transport to 58 mm printers |
 | QR on screen | `qr_flutter` | ^4.x | Show PromptPay QR in-app |
-| Secure token storage | `flutter_secure_storage` | ^9.x | Session persistence |
-| Testing | `flutter_test`, `mocktail`, `integration_test` | ^1.x | Unit + widget + integration |
+| Secure token storage | `flutter_secure_storage` | ^11.x | Session persistence |
+| Testing | `flutter_test`, `http` (its `MockClient` fakes the backend), `mocktail`, `integration_test` | ^1.x | Unit + widget + integration |
 
 The **billing-logic module** is a pure Dart module (no Flutter, network, or database imports) so it unit-tests in isolation — the project's primary test seam. It is backend-agnostic. Per ADR 0001 its input is `(previous, current, tariff_version)`; there is no unmetered flat-fee path.
 
@@ -156,7 +156,7 @@ watney/
 
 - **Local (current phase):** the PocketBase binary and the admin dev server start with one command. PocketBase data lives in a git-ignored local folder and the schema comes from committed migrations. PocketBase listens on all network interfaces so devices can reach it: the Android emulator uses `10.0.2.2`, and a real phone on the same Wi-Fi uses the computer's LAN IP.
 - **Production (later phase):** the Fly.io app, plus off-site backups and a tested restore procedure. These get their own issues when that phase starts. A staging Fly app can be added later if needed (~$5/mo).
-- Flutter build flavors (`dev`/`prod`) select the PocketBase URL.
+- The field app's PocketBase URL is set per build with `--dart-define=PB_URL=…` (`make dev PB_URL=…`, see `mobile/README.md`). Build flavors (`dev`/`prod`) can replace this when there's a production backend.
 
 ## 13. Decisions & alternatives
 

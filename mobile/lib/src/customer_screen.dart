@@ -1,21 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'customer.dart';
-
-const _statusLabels = {
-  CustomerStatus.pending: 'รอติดตั้งมาตร',
-  CustomerStatus.active: 'ปกติ',
-  CustomerStatus.waterCut: 'ตัดน้ำ',
-  CustomerStatus.cancelled: 'ยกเลิก',
-};
-
-const _sizeLabels = {
-  '1/2': '½ นิ้ว',
-  '3/4': '¾ นิ้ว',
-  '1': '1 นิ้ว',
-  '1-1/2': '1½ นิ้ว',
-  '2': '2 นิ้ว',
-};
+import 'labels.dart';
 
 /// One customer's details and meters.
 class CustomerScreen extends StatelessWidget {
@@ -39,7 +25,7 @@ class CustomerScreen extends StatelessWidget {
             _Detail('หมู่ที่', '${customer.moo}'),
             _Detail('เส้นทาง', customer.routeName),
             _Detail('โทรศัพท์', customer.phone.isEmpty ? '-' : customer.phone),
-            _Detail('สถานะ', _statusLabels[customer.status]!),
+            _Detail('สถานะ', customerStatusLabels[customer.status]!),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text('มาตรน้ำ', style: theme.textTheme.titleMedium),
@@ -55,13 +41,10 @@ class CustomerScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _Detail('หมายเลขมาตร', meter.number),
-                    _Detail('ขนาด', _sizeLabels[meter.size] ?? meter.size),
+                    _Detail('ขนาด', meterSizeLabels[meter.size] ?? meter.size),
                     _Detail('วันที่ติดตั้ง', thaiDate(meter.installedOn)),
                     _Detail('เลขมาตรเริ่มต้น', '${meter.startReading}'),
-                    _Detail(
-                      'สถานะ',
-                      meter.status == MeterStatus.active ? 'ใช้งาน' : 'ถอดแล้ว',
-                    ),
+                    _Detail('สถานะ', meterStatusLabels[meter.status]!),
                   ],
                 ),
               ),
@@ -86,10 +69,4 @@ class _Detail extends StatelessWidget {
       trailing: Text(value, style: Theme.of(context).textTheme.bodyLarge),
     );
   }
-}
-
-/// A YYYY-MM-DD date as Thai readers expect it: day/month/Buddhist-era year.
-String thaiDate(String date) {
-  final [year, month, day] = date.split('-').map(int.parse).toList();
-  return '$day/$month/${year + 543}';
 }

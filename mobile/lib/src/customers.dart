@@ -20,30 +20,32 @@ class PocketBaseCustomers implements CustomerRepository {
     final records = await _pb
         .collection('customers')
         .getFullList(expand: 'route,meters_via_customer');
-    return records.map(_customer).toList();
+    return records.map(_toCustomer).toList();
   }
 }
 
-Customer _customer(RecordModel record) => Customer(
+Customer _toCustomer(RecordModel record) => Customer(
   id: record.id,
   houseNo: record.getStringValue('house_no'),
   moo: record.getIntValue('moo'),
   name: record.getStringValue('name'),
   phone: record.getStringValue('phone'),
   routeName: record.getStringValue('expand.route.name'),
-  status: switch (record.getStringValue('status')) {
-    'active' => CustomerStatus.active,
-    'water_cut' => CustomerStatus.waterCut,
-    'cancelled' => CustomerStatus.cancelled,
-    _ => CustomerStatus.pending,
-  },
+  status: _customerStatuses[record.getStringValue('status')]!,
   meters: record
       .get<List<dynamic>>('expand.meters_via_customer', [])
-      .map((meter) => _meter(RecordModel(meter as Map<String, dynamic>)))
+      .map((meter) => _toMeter(RecordModel(meter as Map<String, dynamic>)))
       .toList(),
 );
 
-Meter _meter(RecordModel record) => Meter(
+const _customerStatuses = {
+  'pending': CustomerStatus.pending,
+  'active': CustomerStatus.active,
+  'water_cut': CustomerStatus.waterCut,
+  'cancelled': CustomerStatus.cancelled,
+};
+
+Meter _toMeter(RecordModel record) => Meter(
   id: record.id,
   number: record.getStringValue('number'),
   size: record.getStringValue('size'),

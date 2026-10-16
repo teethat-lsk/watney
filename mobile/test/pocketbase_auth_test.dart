@@ -1,10 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:pocketbase/pocketbase.dart';
 import 'package:watney/src/auth.dart';
+
+import 'fixtures.dart';
 
 /// A token PocketBase's auth store accepts as unexpired (it only decodes the payload).
 final token = [
@@ -44,27 +43,6 @@ class MemorySessionStore implements SessionStore {
   Future<void> clear() async => saved = null;
 }
 
-/// A PocketBase client whose requests get [answer]'s status and JSON body.
-PocketBase backend((int, Object) Function(http.Request request) answer) {
-  return PocketBase(
-    'http://pb.test',
-    httpClientFactory: () => MockClient((request) async {
-      final (status, body) = answer(request);
-      return http.Response(
-        jsonEncode(body),
-        status,
-        headers: {'content-type': 'application/json; charset=utf-8'},
-      );
-    }),
-  );
-}
-
-PocketBase unreachable() => PocketBase(
-  'http://pb.test',
-  httpClientFactory: () =>
-      MockClient((_) async => throw http.ClientException('no route to host')),
-);
-
 final authenticated = (200, {'token': token, 'record': staffRecord()});
 
 void main() {
@@ -74,13 +52,13 @@ void main() {
       final store = MemorySessionStore();
 
       final reader = await PocketBaseAuth(
-        backend((_) => authenticated),
+        fakeBackend((_) => authenticated),
         store,
       ).login('reader@example.com', 'secret-password');
       expect(reader.name, 'สมปอง');
 
       final restarted = PocketBaseAuth(
-        backend((request) {
+        fakeBackend((request) {
           expect(request.url.path, '/api/collections/users/auth-refresh');
           expect(request.headers['Authorization'], token);
           return authenticated;
@@ -93,7 +71,7 @@ void main() {
 
   test('starts logged out when no session is stored', () async {
     final auth = PocketBaseAuth(
-      backend((_) => fail('no request expected')),
+      fakeBackend((_) => fail('no request expected')),
       MemorySessionStore(),
     );
 
@@ -103,7 +81,7 @@ void main() {
   test("rejects staff who aren't meter readers and keeps no session", () async {
     final store = MemorySessionStore();
     final auth = PocketBaseAuth(
-      backend(
+      fakeBackend(
         (_) => (200, {'token': token, 'record': staffRecord(role: 'office')}),
       ),
       store,
@@ -128,7 +106,9 @@ void main() {
       (403, LoginFailure.inactive),
     ]) {
       final auth = PocketBaseAuth(
-        backend((_) => (status, {'status': status, 'message': '', 'data': {}})),
+        fakeBackend(
+          (_) => (status, {'status': status, 'message': '', 'data': {}}),
+        ),
         MemorySessionStore(),
       );
 
@@ -142,7 +122,7 @@ void main() {
   test('reports a backend that does not answer as unreachable', () async {
     await expectLater(
       PocketBaseAuth(
-        unreachable(),
+        unreachableBackend(),
         MemorySessionStore(),
       ).login('reader@example.com', 'secret-password'),
       throwsA(
@@ -164,12 +144,12 @@ void main() {
     for (final answer in rejections) {
       final store = MemorySessionStore();
       await PocketBaseAuth(
-        backend((_) => authenticated),
+        fakeBackend((_) => authenticated),
         store,
       ).login('reader@example.com', 'secret-password');
 
       expect(
-        await PocketBaseAuth(backend((_) => answer), store).restore(),
+        await PocketBaseAuth(fakeBackend((_) => answer), store).restore(),
         isNull,
       );
       expect(store.saved, isNull);
@@ -181,12 +161,12 @@ void main() {
     () async {
       final store = MemorySessionStore();
       await PocketBaseAuth(
-        backend((_) => authenticated),
+        fakeBackend((_) => authenticated),
         store,
       ).login('reader@example.com', 'secret-password');
 
       expect(
-        (await PocketBaseAuth(unreachable(), store).restore())?.name,
+        (await PocketBaseAuth(unreachableBackend(), store).restore())?.name,
         'สมปอง',
       );
       expect(store.saved, isNotNull);
@@ -195,14 +175,14 @@ void main() {
 
   test('logs out and forgets the session', () async {
     final store = MemorySessionStore();
-    final auth = PocketBaseAuth(backend((_) => authenticated), store);
+    final auth = PocketBaseAuth(fakeBackend((_) => authenticated), store);
     await auth.login('reader@example.com', 'secret-password');
 
     await auth.logout();
 
     expect(store.saved, isNull);
     expect(
-      await PocketBaseAuth(backend((_) => authenticated), store).restore(),
+      await PocketBaseAuth(fakeBackend((_) => authenticated), store).restore(),
       isNull,
     );
   });

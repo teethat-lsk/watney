@@ -1,44 +1,39 @@
-// The meter reader's list of customers: which ones, in what order, and search.
+// The meter reader's list of customers: which ones, and in what order.
 // Pure Dart, unit-tested in test/route_list_test.dart.
 
 import 'customer.dart';
 
-/// The customers whose meters the reader reads (active, or with their water
-/// cut), in walking order: by route, then หมู่, then house number.
-List<Customer> routeList(Iterable<Customer> customers) {
-  final read = customers
+/// The customers to show the reader, in walking order: by route, then หมู่,
+/// then house number.
+///
+/// Without a [query], these are the customers whose meters they read: active
+/// ones and those with their water cut. With one, every customer whose name,
+/// house number or any meter number contains it (ignoring case and the spaces
+/// around it), whatever their status: a cancelled customer may still owe money.
+List<Customer> routeList(Iterable<Customer> customers, {String query = ''}) {
+  final text = query.trim().toLowerCase();
+  final shown = customers
       .where(
-        (customer) =>
-            customer.status == CustomerStatus.active ||
-            customer.status == CustomerStatus.waterCut,
+        (customer) => text.isEmpty
+            ? customer.status == CustomerStatus.active ||
+                  customer.status == CustomerStatus.waterCut
+            : _matches(customer, text),
       )
       .toList();
-  read.sort(
+  shown.sort(
     (a, b) => _firstNonZero([
       naturalCompare(a.routeName, b.routeName),
       a.moo.compareTo(b.moo),
       naturalCompare(a.houseNo, b.houseNo),
     ]),
   );
-  return read;
+  return shown;
 }
 
-/// The customers whose name, house number or any meter number contains
-/// [query], ignoring case and surrounding spaces. An empty query matches all.
-List<Customer> search(List<Customer> customers, String query) {
-  final text = query.trim().toLowerCase();
-  if (text.isEmpty) return customers;
-  return customers
-      .where(
-        (customer) =>
-            customer.name.toLowerCase().contains(text) ||
-            customer.houseNo.toLowerCase().contains(text) ||
-            customer.meters.any(
-              (meter) => meter.number.toLowerCase().contains(text),
-            ),
-      )
-      .toList();
-}
+bool _matches(Customer customer, String text) =>
+    customer.name.toLowerCase().contains(text) ||
+    customer.houseNo.toLowerCase().contains(text) ||
+    customer.meters.any((meter) => meter.number.toLowerCase().contains(text));
 
 final _chunks = RegExp(r'\d+|\D+');
 

@@ -43,8 +43,9 @@ class LoginError implements Exception {
 /// Meter reader login. The app depends on this, so tests can swap in a fake.
 abstract interface class Auth {
   /// The reader whose session was stored by an earlier login, checked with the
-  /// backend; null when there's none or the backend no longer accepts it. If the
-  /// backend can't be reached, the stored session is kept.
+  /// backend (on start, and again before a reload); null when there's none or
+  /// the backend no longer accepts it. If the backend can't be reached, the
+  /// stored session is kept.
   Future<MeterReader?> restore();
 
   /// Throws [LoginError].
@@ -91,12 +92,12 @@ class PocketBaseAuth implements Auth {
     try {
       await _pb.collection('users').authRefresh();
     } on ClientException catch (error) {
-      if (_isUnreachable(error)) return _reader(_pb.authStore.record!);
+      if (_isUnreachable(error)) return _toReader(_pb.authStore.record!);
       // 401: the token is no longer valid; 403: the account was deactivated.
       await logout();
       return null;
     }
-    return _accept();
+    return _keepIfReader();
   }
 
   @override
@@ -112,7 +113,7 @@ class PocketBaseAuth implements Auth {
         _ => throw error,
       });
     }
-    final reader = await _accept();
+    final reader = await _keepIfReader();
     if (reader == null) throw const LoginError(LoginFailure.notReader);
     return reader;
   }
@@ -123,17 +124,17 @@ class PocketBaseAuth implements Auth {
     await _store.clear();
   }
 
-  /// Keeps the session if it's a meter reader's, or logs out and returns null.
-  Future<MeterReader?> _accept() async {
+  /// Stores the session if it's a meter reader's, or logs out and returns null.
+  Future<MeterReader?> _keepIfReader() async {
     final record = _pb.authStore.record!;
-    if (record.getStringValue('role') != 'meter_reader') {
+    if (record.getStringValue('role') != _readerRole) {
       await logout();
       return null;
     }
     await _store.write(
       jsonEncode({'token': _pb.authStore.token, 'record': record.toJson()}),
     );
-    return _reader(record);
+    return _toReader(record);
   }
 
   /// Loads a session saved by [_accept]; false when there's none or its token expired.
@@ -153,12 +154,14 @@ class PocketBaseAuth implements Auth {
     return _pb.authStore.isValid;
   }
 
-  MeterReader _reader(RecordModel record) => MeterReader(
+  MeterReader _toReader(RecordModel record) => MeterReader(
     id: record.id,
     email: record.getStringValue('email'),
     name: record.getStringValue('name'),
   );
 }
+
+const _readerRole = 'meter_reader';
 
 /// No response at all (0), or a proxy's 5xx while PocketBase is down.
 bool _isUnreachable(ClientException error) =>

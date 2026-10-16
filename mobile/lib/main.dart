@@ -57,6 +57,12 @@ class _WatneyAppState extends State<WatneyApp> {
     });
   }
 
+  Future<bool> _stillLoggedIn() async {
+    final reader = await widget.auth.restore();
+    if (reader == null && mounted) setState(() => _reader = null);
+    return reader != null;
+  }
+
   Future<void> _logout() async {
     await widget.auth.logout();
     setState(() => _reader = null);
@@ -87,7 +93,8 @@ class _WatneyAppState extends State<WatneyApp> {
           }
           return CustomerListScreen(
             reader: reader,
-            repository: widget.customers,
+            customers: widget.customers,
+            stillLoggedIn: _stillLoggedIn,
             onLogout: _logout,
           );
         },

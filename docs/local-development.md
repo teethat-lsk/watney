@@ -215,12 +215,14 @@ Already in the scaffold:
 | `cupertino_icons` | iOS-style icons (template default; can be removed) |
 | `flutter_test` (SDK) | unit and widget tests (`flutter test`) |
 | `flutter_lints` | lint rules for `flutter analyze` |
+| `pocketbase` | backend client: auth, records, photo upload |
+| `flutter_secure_storage` | keep the login session in encrypted storage |
+| `http` (dev) | `MockClient`, a fake backend for testing the PocketBase code |
 
 Planned. Run these from `mobile/`:
 
 | Package | Usage | Install | Android setup |
 |---|---|---|---|
-| `pocketbase` | backend client: auth, records, photo upload | `flutter pub add pocketbase` | — |
 | `flutter_riverpod` | state management | `flutter pub add flutter_riverpod` | — |
 | `drift` + `drift_flutter` | local SQLite: the route cache and the outbox for offline sync | `flutter pub add drift drift_flutter` | — |
 | `drift_dev` + `build_runner` | generate Drift's typed database code | `flutter pub add dev:drift_dev dev:build_runner`; regenerate with `dart run build_runner build` | — |
@@ -231,7 +233,6 @@ Planned. Run these from `mobile/`:
 | `esc_pos_utils_plus` | build the ESC/POS receipt bytes (text, image, QR) | `flutter pub add esc_pos_utils_plus` | — |
 | `print_bluetooth_thermal` | send those bytes to the printer over Bluetooth Classic | `flutter pub add print_bluetooth_thermal` | Bluetooth permissions in `AndroidManifest.xml` (see the package README) |
 | `qr_flutter` | show the PromptPay QR on screen | `flutter pub add qr_flutter` | — |
-| `flutter_secure_storage` | keep the login token in encrypted storage | `flutter pub add flutter_secure_storage` | — |
 | `mocktail` | fakes and mocks in unit tests | `flutter pub add dev:mocktail` | — |
 | `integration_test` (SDK) | end-to-end tests on a device | `flutter pub add 'dev:integration_test:{"sdk":"flutter"}'` | — |
 

@@ -2,35 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:watney/src/customer.dart';
 import 'package:watney/src/route_list.dart';
 
-Customer customer(
-  String name, {
-  String route = 'สาย 1',
-  int moo = 1,
-  String houseNo = '1',
-  CustomerStatus status = CustomerStatus.active,
-  List<String> meters = const [],
-}) {
-  return Customer(
-    id: name,
-    houseNo: houseNo,
-    moo: moo,
-    name: name,
-    phone: '',
-    routeName: route,
-    status: status,
-    meters: [
-      for (final number in meters)
-        Meter(
-          id: number,
-          number: number,
-          size: '1/2',
-          installedOn: '2026-01-15',
-          startReading: 0,
-          status: MeterStatus.active,
-        ),
-    ],
-  );
-}
+import 'fixtures.dart';
 
 List<String> names(List<Customer> customers) => [
   for (final c in customers) c.name,
@@ -76,35 +48,53 @@ void main() {
     });
   });
 
-  group('search', () {
+  group('routeList with a search', () {
     final customers = [
-      customer('นายมานะ ใจดี', houseNo: '12/3', meters: ['WM-001']),
-      customer('นางสมศรี มีสุข', houseNo: '45', meters: ['WM-002', 'AB-777']),
+      customer('นายมานะ ใจดี', houseNo: '12/3', meters: [meter('WM-001')]),
+      customer(
+        'นางสมศรี มีสุข',
+        houseNo: '45',
+        meters: [meter('WM-002'), meter('AB-777')],
+      ),
     ];
 
     test('finds customers by part of their name', () {
-      expect(names(search(customers, 'สมศรี')), ['นางสมศรี มีสุข']);
+      expect(names(routeList(customers, query: 'สมศรี')), ['นางสมศรี มีสุข']);
     });
 
     test('finds customers by house number', () {
-      expect(names(search(customers, '12/3')), ['นายมานะ ใจดี']);
+      expect(names(routeList(customers, query: '12/3')), ['นายมานะ ใจดี']);
     });
 
     test(
       'finds customers by meter number, ignoring case and spaces around it',
       () {
-        expect(names(search(customers, '  ab-777 ')), ['นางสมศรี มีสุข']);
+        expect(names(routeList(customers, query: '  ab-777 ')), [
+          'นางสมศรี มีสุข',
+        ]);
+      },
+    );
+
+    test(
+      'finds pending and cancelled customers too, who may still owe money',
+      () {
+        final found = routeList([
+          customer('นายรอ มาตร', status: CustomerStatus.pending),
+          customer('นายเลิก ใช้', status: CustomerStatus.cancelled),
+        ], query: 'นาย');
+
+        expect(names(found), ['นายรอ มาตร', 'นายเลิก ใช้']);
       },
     );
 
     test(
       'returns everyone for an empty query, and no one when nothing matches',
       () {
-        expect(names(search(customers, ' ')), [
+        expect(names(routeList(customers, query: ' ')), [
           'นายมานะ ใจดี',
           'นางสมศรี มีสุข',
         ]);
-        expect(search(customers, 'ไม่มีใคร'), isEmpty);
+        expect(routeList(customers, query: 'ไม่มีใคร'), isEmpty);
       },
     );
   });

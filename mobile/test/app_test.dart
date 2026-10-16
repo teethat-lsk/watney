@@ -5,6 +5,8 @@ import 'package:watney/src/auth.dart';
 import 'package:watney/src/customer.dart';
 import 'package:watney/src/customers.dart';
 
+import 'fixtures.dart';
+
 const reader = MeterReader(
   id: 'u3',
   email: 'reader@example.com',
@@ -52,48 +54,32 @@ class FakeCustomers implements CustomerRepository {
   }
 }
 
-Meter meter(String number, {MeterStatus status = MeterStatus.active}) => Meter(
-  id: number,
-  number: number,
-  size: '3/4',
-  installedOn: '2026-01-15',
-  startReading: 12.5,
-  status: status,
-);
-
 final customers = [
-  Customer(
+  customer(
+    'นางสมศรี มีสุข',
     id: 'c2',
     houseNo: '9',
     moo: 2,
-    name: 'นางสมศรี มีสุข',
     phone: '0899999999',
-    routeName: 'สาย 1',
     status: CustomerStatus.waterCut,
     meters: [meter('WM-002')],
   ),
-  Customer(
+  customer(
+    'นายมานะ ใจดี',
     id: 'c1',
     houseNo: '12/3',
-    moo: 1,
-    name: 'นายมานะ ใจดี',
     phone: '0812345678',
-    routeName: 'สาย 1',
-    status: CustomerStatus.active,
     meters: [
       meter('WM-001'),
       meter('OLD-001', status: MeterStatus.removed),
     ],
   ),
-  Customer(
-    id: 'c3',
-    houseNo: '1',
-    moo: 1,
-    name: 'นายกล้า หาญ',
-    phone: '',
-    routeName: 'สาย 2',
-    status: CustomerStatus.active,
-    meters: [meter('WM-003')],
+  customer('นายกล้า หาญ', id: 'c3', route: 'สาย 2', meters: [meter('WM-003')]),
+  customer(
+    'นางวีณา เลิกใช้',
+    id: 'c4',
+    status: CustomerStatus.cancelled,
+    meters: [meter('WM-004', status: MeterStatus.removed)],
   ),
 ];
 
@@ -201,6 +187,7 @@ void main() {
       ('สมศรี', ['c2']),
       ('12/3', ['c1']),
       ('wm-003', ['c3']),
+      ('วีณา', ['c4']),
       ('', ['c1', 'c2', 'c3']),
     ]) {
       await tester.enterText(find.byType(TextField), query);
@@ -234,6 +221,20 @@ void main() {
       expect(find.text(text), findsWidgets, reason: text);
     }
   });
+
+  testWidgets(
+    'goes back to the login form when a reload finds the session has ended',
+    (tester) async {
+      final auth = FakeAuth(stored: reader);
+      await startApp(tester, auth: auth);
+
+      auth.stored = null; // say an admin deactivated the reader meanwhile
+      await tester.fling(find.byType(ListView), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(FilledButton, 'เข้าสู่ระบบ'), findsOneWidget);
+    },
+  );
 
   testWidgets("offers to try again when the customers can't be loaded", (
     tester,
