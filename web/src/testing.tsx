@@ -5,7 +5,7 @@ import { vi } from 'vitest'
 import type { Api } from './api'
 import App from './App'
 import type { Auth, Staff } from './auth'
-import type { Customer, CustomerRegister, Meter } from './customers'
+import type { Customer, CustomerRegister, Meter, MeterStatus } from './customers'
 import { FormError } from './formError'
 import type { ReadingRoute, RouteDirectory } from './routes'
 import type { StaffAccount, StaffDirectory } from './staff'
@@ -76,7 +76,9 @@ export function fakeRouteDirectory(initial: ReadingRoute[] = []): RouteDirectory
 
 /**
  * A customer register kept in memory. Like the backend, it rejects a meter number
- * that's already used, and a customer becoming active without an active meter.
+ * that's already used, a customer becoming active without an active meter or
+ * getting a second one, and removing an active customer's meter; and a pending
+ * customer becomes active when their meter is registered.
  */
 export function fakeCustomerRegister(initial: Customer[] = [], routes: ReadingRoute[] = []): CustomerRegister {
   const customers: Customer[] = structuredClone(initial)
@@ -113,20 +115,25 @@ export function fakeCustomerRegister(initial: Customer[] = [], routes: ReadingRo
       if (changes.status === 'active' && customer.status !== 'active' && !hasActiveMeter(customer)) {
         throw new FormError({ status: 'validation_no_active_meter' })
       }
+      if (changes.status === 'pending' && customer.status !== 'pending') {
+        throw new FormError({ status: 'validation_pending_only_new' })
+      }
       Object.assign(customer, changes)
       customer.routeName = routeName(customer.routeId)
       return copy(customer)
     }),
     addMeter: vi.fn(async (customerId, meter) => {
+      const customer = find(customerId)
+      if (hasActiveMeter(customer)) throw new FormError({ customer: 'validation_customer_has_active_meter' })
       const added = newMeter(meter)
-      find(customerId).meters.push(added)
+      customer.meters.push(added)
+      if (customer.status === 'pending') customer.status = 'active'
       return { ...added }
     }),
     setMeterStatus: vi.fn(async (meterId, status) => {
       const customer = customers.find((candidate) => candidate.meters.some((meter) => meter.id === meterId))!
       const meter = customer.meters.find((candidate) => candidate.id === meterId)!
-      const otherActive = customer.meters.some((other) => other !== meter && other.status === 'active')
-      if (status !== 'active' && customer.status === 'active' && !otherActive) {
+      if (status !== 'active' && customer.status === 'active') {
         throw new FormError({ status: 'validation_customer_needs_active_meter' })
       }
       meter.status = status
@@ -150,7 +157,7 @@ export const sampleRoutes: ReadingRoute[] = [
   { id: 'r2', name: 'สาย 2' },
 ]
 
-const sampleMeter = (id: string, number: string, status: 'active' | 'removed' = 'active') => ({
+const sampleMeter = (id: string, number: string, status: MeterStatus = 'active') => ({
   id,
   number,
   size: '1/2' as const,

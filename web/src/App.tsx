@@ -59,17 +59,12 @@ function App({ auth, api }: { auth: Auth; api: Api }) {
       path: '/customers',
       label: 'ผู้ใช้น้ำ',
       roles: officeStaff,
-      render: () => <CustomersPage register={api.customers} routes={api.routes} />,
+      render: () => <CustomersPage api={api} />,
     },
-    { path: '/customers/new', roles: officeStaff, render: () => <NewCustomerPage register={api.customers} routes={api.routes} /> },
-    { path: '/customers/:id', roles: officeStaff, render: () => <CustomerPage register={api.customers} routes={api.routes} /> },
-    { path: '/routes', label: 'เส้นทาง', roles: officeStaff, render: () => <RoutesPage directory={api.routes} /> },
-    {
-      path: '/staff',
-      label: 'พนักงาน',
-      roles: ['admin'],
-      render: () => <StaffPage directory={api.staff} routes={api.routes} self={staff} />,
-    },
+    { path: '/customers/new', roles: officeStaff, render: () => <NewCustomerPage api={api} /> },
+    { path: '/customers/:id', roles: officeStaff, render: () => <CustomerPage api={api} /> },
+    { path: '/routes', label: 'เส้นทาง', roles: officeStaff, render: () => <RoutesPage api={api} /> },
+    { path: '/staff', label: 'พนักงาน', roles: ['admin'], render: () => <StaffPage api={api} self={staff} /> },
   ]
   const allowed = (page: Page) => page.roles.includes(staff.role)
   const menu = pages.filter((page): page is MenuPage => page.label !== undefined && allowed(page))

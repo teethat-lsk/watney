@@ -27,6 +27,15 @@ export function toFormError(error: unknown): unknown {
   return Object.keys(fields).length > 0 ? new FormError(fields) : error
 }
 
+/** Waits for a save, turning the backend's field validation errors into a FormError. */
+export async function withFormErrors<T>(save: Promise<T>): Promise<T> {
+  try {
+    return await save
+  } catch (error) {
+    throw toFormError(error)
+  }
+}
+
 /** Messages for the validation codes a form expects, by field then code. */
 export type FieldMessages = Record<string, Record<string, string>>
 

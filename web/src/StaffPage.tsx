@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import type { Role, Staff } from './auth'
+import type { Api } from './api'
 import { saveErrorMessage, type FieldMessages } from './formError'
-import { queryKeys } from './queryKeys'
+import { queryKeys, useRouteList } from './queries'
 import { roleLabels, roles } from './roles'
-import type { ReadingRoute, RouteDirectory } from './routes'
+import type { ReadingRoute } from './routes'
 import type { NewStaffAccount, StaffAccount, StaffChanges, StaffDirectory } from './staff'
 
 const messages: FieldMessages = {
@@ -18,16 +19,16 @@ const messages: FieldMessages = {
 }
 
 interface StaffPageProps {
-  directory: StaffDirectory
-  routes: RouteDirectory
+  api: Api
   /** The logged-in admin, who can't deactivate themselves or change their own role. */
   self: Staff
 }
 
-export function StaffPage({ directory, routes, self }: StaffPageProps) {
+export function StaffPage({ api, self }: StaffPageProps) {
+  const directory = api.staff
   const queryClient = useQueryClient()
   const accounts = useQuery({ queryKey: queryKeys.staff, queryFn: () => directory.list() })
-  const routeList = useQuery({ queryKey: queryKeys.routes, queryFn: () => routes.list() })
+  const routeList = useRouteList(api)
   const [editing, setEditing] = useState<StaffAccount | null>(null)
   const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.staff })
   const routeNames = (ids: string[]) =>

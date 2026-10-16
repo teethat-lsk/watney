@@ -14,25 +14,42 @@ module.exports = ({ test, expect, ids, newId, guest, as, createStaff, createRout
   })
   const records = (collection) => `/api/collections/${collection}/records`
 
-  test("office staff and admins register a customer with their first meter, and the customer is active", () => {
+  test("office staff and admins register a customer with their first meter in one batch, and the customer is active", () => {
     for (const role of ["office", "admin"]) {
-      const route = createRoute()
+      const staff = as(createStaff({ role }))
       const id = newId()
 
-      const res = as(createStaff({ role })).batch([
-        { method: "POST", url: records("customers"), body: { id, ...details(route), status: "pending" } },
+      const res = staff.batch([
+        { method: "POST", url: records("customers"), body: { id, ...details(createRoute()), status: "pending" } },
         {
           method: "POST",
           url: records("meters"),
           body: { number: `M-${newId()}`, size: "3/4", installed_on: "2026-10-01", start_reading: 125.5, customer: id, status: "active" },
         },
-        { method: "PATCH", url: `${records("customers")}/${id}`, body: { status: "active" } },
       ])
 
       expect(res).toHaveStatus(200)
-      expect(res.body.map((r) => r.status)).toEqual([200, 200, 200])
-      expect(res.body[2].body.status).toBe("active")
+      expect(res.body.map((r) => r.status)).toEqual([200, 200])
+      expect(staff.view("customers", id).body.status).toBe("active")
     }
+  })
+
+  test("a batch with a meter number that's taken saves nothing", () => {
+    const office = as(createStaff({ role: "office" }))
+    createMeter(createCustomer(createRoute()), { number: "WM-TAKEN" })
+    const id = newId()
+
+    const res = office.batch([
+      { method: "POST", url: records("customers"), body: { id, ...details(createRoute()), status: "pending" } },
+      {
+        method: "POST",
+        url: records("meters"),
+        body: { number: "WM-TAKEN", size: "1/2", installed_on: "2026-10-01", start_reading: 0, customer: id, status: "active" },
+      },
+    ])
+
+    expect(res).toHaveStatus(400)
+    expect(office.view("customers", id)).toHaveStatus(404)
   })
 
   test("a customer waiting for a meter is registered as pending", () => {
@@ -58,6 +75,17 @@ module.exports = ({ test, expect, ids, newId, guest, as, createStaff, createRout
 
     createMeter(customer)
     expect(office.update("customers", customer.id, { status: "active" })).toHaveStatus(200)
+  })
+
+  test("only a new customer can be pending", () => {
+    const office = as(createStaff({ role: "office" }))
+    const customer = createCustomer(createRoute())
+    createMeter(customer)
+
+    const res = office.update("customers", customer.id, { status: "pending" })
+
+    expect(res).toHaveStatus(400)
+    expect(res.body.data.status.code).toBe("validation_pending_only_new")
   })
 
   test("office staff edit a customer, cut their water, and cancel them", () => {
@@ -92,6 +120,22 @@ module.exports = ({ test, expect, ids, newId, guest, as, createStaff, createRout
     expect(reader.view("customers", onNorth.id)).toHaveStatus(200)
     expect(reader.view("customers", onEast.id)).toHaveStatus(404)
     expect(ids(as(createStaff({ role: "meter_reader" })).list("customers"))).toEqual([])
+  })
+
+  test("expanding related records doesn't show meter readers anything off their routes", () => {
+    const mine = createRoute()
+    const other = createRoute()
+    const onMine = createCustomer(mine)
+    const meterOnMine = createMeter(onMine)
+    createMeter(createCustomer(other))
+    const reader = as(createStaff({ role: "meter_reader", routes: [mine.id] }))
+
+    const customers = reader.list("customers", "expand=route,meters_via_customer")
+    expect(ids(customers)).toEqual([onMine.id])
+    expect(customers.body.items[0].expand.meters_via_customer.map((m) => m.id)).toEqual([meterOnMine.id])
+    const routes = reader.list("routes", "expand=customers_via_route")
+    expect(routes.body.items[0].expand.customers_via_route.map((c) => c.id)).toEqual([onMine.id])
+    expect(ids(reader.list("meters", `filter=(customer.route='${other.id}')`))).toEqual([])
   })
 
   test("meter readers can't create or edit customers, even on their routes", () => {

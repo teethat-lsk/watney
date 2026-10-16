@@ -1,16 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import type { Api } from './api'
 import { saveErrorMessage, type FieldMessages } from './formError'
-import { queryKeys } from './queryKeys'
-import type { ReadingRoute, RouteDirectory } from './routes'
+import { queryKeys, useRouteList } from './queries'
+import type { ReadingRoute } from './routes'
 
 const messages: FieldMessages = {
   name: { validation_not_unique: 'มีเส้นทางชื่อนี้แล้ว' },
 }
 
-export function RoutesPage({ directory }: { directory: RouteDirectory }) {
+export function RoutesPage({ api }: { api: Api }) {
+  const directory = api.routes
   const queryClient = useQueryClient()
-  const routes = useQuery({ queryKey: queryKeys.routes, queryFn: () => directory.list() })
+  const routes = useRouteList(api)
   const [renaming, setRenaming] = useState<ReadingRoute | null>(null)
   const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.routes })
 

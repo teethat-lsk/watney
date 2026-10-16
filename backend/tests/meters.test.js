@@ -2,7 +2,7 @@
 
 // Meters (#4, ADR 0001): office staff and admins register meters with unique
 // numbers and link them to customers; meter readers see the meters on their routes.
-module.exports = ({ test, expect, ids, guest, as, createStaff, createRoute, createCustomer, createMeter }) => {
+module.exports = ({ test, expect, ids, guest, as, createStaff, createSuperuser, createRoute, createCustomer, createMeter }) => {
   const newMeter = (customer, fields) => ({
     number: "WM-0001",
     size: "1/2",
@@ -24,30 +24,59 @@ module.exports = ({ test, expect, ids, guest, as, createStaff, createRoute, crea
     }
   })
 
-  test("meter numbers are unique", () => {
+  test("registering a pending customer's meter makes them active", () => {
     const office = as(createStaff({ role: "office" }))
-    const customer = createCustomer(createRoute())
-    createMeter(customer, { number: "WM-DUP" })
+    const customer = createCustomer(createRoute(), { status: "pending" })
 
-    const res = office.create("meters", newMeter(customer, { number: "WM-DUP" }))
+    expect(office.create("meters", newMeter(customer, { number: "WM-FIRST" }))).toHaveStatus(200)
 
-    expect(res).toHaveStatus(400)
-    expect(res.body.data.number.code).toBe("validation_not_unique")
+    expect(office.view("customers", customer.id).body.status).toBe("active")
   })
 
-  test("an active customer's last active meter can't be removed or moved to another customer", () => {
+  test("meter numbers are unique, whatever their letter case", () => {
+    const office = as(createStaff({ role: "office" }))
+    const customer = createCustomer(createRoute(), { status: "cancelled" })
+    createMeter(customer, { number: "WM-DUP", status: "removed" })
+
+    for (const number of ["WM-DUP", "wm-dup"]) {
+      const res = office.create("meters", newMeter(customer, { number }))
+      expect(res).toHaveStatus(400)
+      expect(res.body.data.number.code).toBe("validation_not_unique")
+    }
+  })
+
+  test("an active customer's active meter can't be removed or moved to another customer", () => {
     const office = as(createStaff({ role: "office" }))
     const route = createRoute()
-    const customer = createCustomer(route)
-    const meter = createMeter(customer)
+    const meter = createMeter(createCustomer(route))
 
     const removed = office.update("meters", meter.id, { status: "removed" })
     expect(removed).toHaveStatus(400)
     expect(removed.body.data.status.code).toBe("validation_customer_needs_active_meter")
-    expect(office.update("meters", meter.id, { customer: createCustomer(route).id })).toHaveStatus(400)
+    const moved = office.update("meters", meter.id, { customer: createCustomer(route, { status: "pending" }).id })
+    expect(moved).toHaveStatus(400)
+    expect(moved.body.data.customer.code).toBe("validation_customer_needs_active_meter")
+  })
 
+  test("not even a superuser can delete an active customer's active meter", () => {
+    const meter = createMeter(createCustomer(createRoute()))
+
+    const res = as(createSuperuser()).remove("meters", meter.id)
+
+    expect(res).toHaveStatus(400)
+    expect(res.body.data.status.code).toBe("validation_customer_needs_active_meter")
+  })
+
+  test("a customer has at most one active meter, until replacing a meter is supported", () => {
+    const office = as(createStaff({ role: "office" }))
+    const customer = createCustomer(createRoute())
     createMeter(customer)
-    expect(office.update("meters", meter.id, { status: "removed" })).toHaveStatus(200)
+    const spare = createMeter(createCustomer(createRoute(), { status: "cancelled" }), { status: "removed" })
+
+    const added = office.create("meters", newMeter(customer, { number: "WM-SECOND" }))
+    expect(added).toHaveStatus(400)
+    expect(added.body.data.customer.code).toBe("validation_customer_has_active_meter")
+    expect(office.update("meters", spare.id, { customer: customer.id, status: "active" })).toHaveStatus(400)
   })
 
   test("a meter of a customer who isn't active can be removed", () => {

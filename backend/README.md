@@ -42,11 +42,17 @@ make seed
 | `users` | Staff: `role`, `active`, and a meter reader's `routes` | Admins manage staff; other staff see only themselves |
 | `routes` | Meter-reading routes (เส้นทาง) | Office staff and admins manage them; a meter reader sees their own |
 | `customers` | ผู้ใช้น้ำ: house number, หมู่, name, phone, `status` (`pending`, `active`, `water_cut`, `cancelled`), route | Office staff and admins manage them; a meter reader sees those on their routes |
-| `meters` | The meter register: unique number, size, install date, starting reading, customer, `status` (`active`, `removed`) | Same as customers |
+| `meters` | The meter register: number (unique, ignoring letter case), size, install date, starting reading, customer, `status` (`active`, `removed`) | Same as customers |
 
 Nothing in these collections is deleted through the API: staff are deactivated, customers cancelled, meters removed.
 
-Every active customer has an active meter (ADR 0001). A customer can't become active without one, and an active customer's last active meter can't be removed or moved to another customer (`pb_hooks/customers.pb.js`). A new customer is `pending` until a meter is linked. The web admin registers a customer with their first meter in one batch request (`/api/batch`, enabled by the migration), so both are saved or neither is.
+Hooks keep customers and meters consistent (`pb_hooks/customer_rules.pb.js`), on every save from the API or the dashboard:
+
+- Every active customer has an active meter (ADR 0001). A customer can't become active without one, and an active customer's active meter can't be removed, moved to another customer, or deleted.
+- A customer has at most one active meter. Replacing a meter is a later issue; the schema already allows more.
+- `pending` is only for a new customer waiting for their meter. Registering the meter makes them active, and no customer goes back to `pending`.
+
+The web admin registers a customer with their first meter in one batch request (`/api/batch`, enabled by the migration), so both are saved or neither is.
 
 ## API tests
 
@@ -63,7 +69,7 @@ module.exports = ({ test, expect, ids, guest, as, createStaff, PASSWORD }) => {
 }
 ```
 
-`as(record)` and `guest` send requests (`list`, `view`, `create`, `update`, `remove`, `login`, `batch`, `send`). Fixtures (`createStaff`, `createRoute`, `createCustomer`, `createMeter`) skip the hooks, so a test can set up any state directly. `tests/harness.js` has the rest. When a rule denies a request, PocketBase answers in one of these ways: a list leaves out the records the rule hides, a view or update of a hidden record returns 404, a create returns 400, and an action with no rule at all (superusers only) returns 403.
+`as(record)` and `guest` send requests (`list`, `view`, `create`, `update`, `remove`, `login`, `batch`, `send`). Fixtures (`createStaff`, `createSuperuser`, `createRoute`, `createCustomer`, `createMeter`) skip the hooks, so a test can set up any state directly. `tests/harness.js` has the rest. When a rule denies a request, PocketBase answers in one of these ways: a list leaves out the records the rule hides, a view or update of a hidden record returns 404, a create returns 400, and an action with no rule at all (superusers only) returns 403.
 
 ## Layout
 

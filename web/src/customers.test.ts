@@ -64,7 +64,7 @@ describe('pocketbaseCustomerRegister', () => {
     ])
   })
 
-  it('registers a customer with their first meter in one batch: pending, the meter, then active', async () => {
+  it('registers a customer with their first meter in one batch: the customer, then their meter', async () => {
     const fetch = respond([200, []], [200, customerRecord])
 
     const customer = await register().create(
@@ -88,7 +88,6 @@ describe('pocketbaseCustomerRegister', () => {
         url: '/api/collections/meters/records',
         body: { number: 'WM-001', size: '3/4', installed_on: '2026-01-15', start_reading: 12.5, customer: id, status: 'active' },
       },
-      { method: 'PATCH', url: `/api/collections/customers/records/${id}`, body: { status: 'active' } },
     ])
     expect(customer.status).toBe('active')
   })

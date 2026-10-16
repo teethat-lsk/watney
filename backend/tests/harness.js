@@ -25,6 +25,16 @@ function createStaff(fields) {
   return record
 }
 
+/** Saves a superuser: an operator of the PocketBase dashboard, not a staff member. */
+function createSuperuser() {
+  staffCount++
+  const record = new Record($app.findCollectionByNameOrId("_superusers"))
+  record.setEmail(`operator${staffCount}@test.local`)
+  record.setPassword(PASSWORD)
+  $app.save(record)
+  return record
+}
+
 /** Saves a record in the collection with the given fields and returns it. Hooks don't run here. */
 function createRecord(collection, fields) {
   const record = new Record($app.findCollectionByNameOrId(collection))
@@ -133,6 +143,7 @@ function run(baseUrl, suites) {
     ids,
     newId,
     createStaff,
+    createSuperuser,
     createRoute,
     createCustomer,
     createMeter,

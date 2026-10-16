@@ -69,7 +69,7 @@ describe('Customer page', () => {
     expect(meterRow('WM-003').columns).toEqual(['WM-003', '½ นิ้ว', '15/1/2569', '0', 'ถอดแล้ว'])
   })
 
-  it('registers a meter for the customer', async () => {
+  it('registers the meter of a customer waiting for one, who is then active', async () => {
     const api = customerApi()
     renderApp({ staff: admin, api, path: '/customers/c3' })
     const form = await screen.findByRole('form', { name: 'เพิ่มมาตร' })
@@ -82,17 +82,33 @@ describe('Customer page', () => {
 
     expect(await screen.findByRole('cell', { name: 'WM-300' })).toBeDefined()
     expect(meterRow('WM-300').columns).toEqual(['WM-300', '1 นิ้ว', '2/10/2569', '0', 'ใช้งาน'])
+    expect(screen.getByText('สถานะ: ปกติ')).toBeDefined()
     expect(api.customers.addMeter).toHaveBeenCalledWith('c3', { number: 'WM-300', size: '1', installedOn: '2026-10-02', startReading: 0 })
   })
 
-  it("won't remove an active customer's last active meter", async () => {
+  it('offers no second meter to a customer who has one in use', async () => {
+    renderApp({ staff: admin, api: customerApi(), path: '/customers/c1' })
+    await screen.findByRole('cell', { name: 'WM-001' })
+
+    expect(screen.queryByRole('form', { name: 'เพิ่มมาตร' })).toBeNull()
+  })
+
+  it('offers "waiting for a meter" only to a customer who still is', async () => {
+    renderApp({ staff: admin, api: customerApi(), path: '/customers/c1' })
+    const statuses = within(await editForm()).getAllByRole('option').map((option) => option.textContent)
+
+    expect(statuses).not.toContain('รอติดตั้งมาตร')
+    expect(statuses).toEqual(expect.arrayContaining(['ปกติ', 'ตัดน้ำ', 'ยกเลิก']))
+  })
+
+  it("won't remove an active customer's meter", async () => {
     renderApp({ staff: admin, api: customerApi(), path: '/customers/c1' })
     await screen.findByRole('cell', { name: 'WM-001' })
 
     fireEvent.click(within(meterRow('WM-001').row).getByRole('button', { name: 'ถอดมาตร' }))
 
     expect((await screen.findByRole('alert')).textContent).toBe(
-      'มาตรนี้เป็นมาตรเดียวที่ใช้งานอยู่ของผู้ใช้น้ำรายนี้ เพิ่มมาตรใหม่หรือเปลี่ยนสถานะผู้ใช้น้ำก่อน',
+      'ผู้ใช้น้ำรายนี้มีสถานะปกติ ต้องมีมาตรที่ใช้งานอยู่ เปลี่ยนสถานะผู้ใช้น้ำก่อนจึงถอดมาตรได้',
     )
   })
 

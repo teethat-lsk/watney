@@ -7,6 +7,8 @@ export const customerStatusLabels: Record<CustomerStatus, string> = {
   cancelled: 'ยกเลิก',
 }
 
+export const customerStatuses = Object.keys(customerStatusLabels) as CustomerStatus[]
+
 export const meterSizeLabels: Record<MeterSize, string> = {
   '1/2': '½ นิ้ว',
   '3/4': '¾ นิ้ว',
@@ -14,6 +16,8 @@ export const meterSizeLabels: Record<MeterSize, string> = {
   '1-1/2': '1½ นิ้ว',
   '2': '2 นิ้ว',
 }
+
+export const meterSizes = Object.keys(meterSizeLabels) as MeterSize[]
 
 export const meterStatusLabels: Record<MeterStatus, string> = {
   active: 'ใช้งาน',

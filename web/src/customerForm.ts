@@ -5,10 +5,12 @@ import type { FieldMessages } from './formError'
 export const customerMessages: FieldMessages = {
   number: { validation_not_unique: 'หมายเลขมาตรนี้มีอยู่แล้ว' },
   installed_on: { validation_required: 'กรอกวันที่ติดตั้งมาตร' },
+  customer: { validation_customer_has_active_meter: 'ผู้ใช้น้ำรายนี้มีมาตรที่ใช้งานอยู่แล้ว' },
   status: {
     validation_no_active_meter: 'ต้องมีมาตรที่ใช้งานอยู่ก่อน จึงตั้งสถานะเป็นปกติได้',
     validation_customer_needs_active_meter:
-      'มาตรนี้เป็นมาตรเดียวที่ใช้งานอยู่ของผู้ใช้น้ำรายนี้ เพิ่มมาตรใหม่หรือเปลี่ยนสถานะผู้ใช้น้ำก่อน',
+      'ผู้ใช้น้ำรายนี้มีสถานะปกติ ต้องมีมาตรที่ใช้งานอยู่ เปลี่ยนสถานะผู้ใช้น้ำก่อนจึงถอดมาตรได้',
+    validation_pending_only_new: 'ตั้งสถานะรอติดตั้งมาตรได้เฉพาะผู้ใช้น้ำใหม่ที่ยังไม่มีมาตร',
   },
 }
 

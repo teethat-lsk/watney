@@ -1,6 +1,6 @@
 import type PocketBase from 'pocketbase'
 import type { RecordModel } from 'pocketbase'
-import { toFormError } from './formError'
+import { withFormErrors } from './formError'
 
 /** A meter-reading route (เส้นทาง). Customers are on one route; admins assign routes to meter readers. */
 export interface ReadingRoute {
@@ -22,21 +22,13 @@ export function pocketbaseRouteDirectory(pb: PocketBase): RouteDirectory {
       return (await routes.getFullList({ sort: 'name' })).map(toRoute)
     },
 
-    create(name) {
-      return save(routes.create({ name }))
+    async create(name) {
+      return toRoute(await withFormErrors(routes.create({ name })))
     },
 
-    rename(id, name) {
-      return save(routes.update(id, { name }))
+    async rename(id, name) {
+      return toRoute(await withFormErrors(routes.update(id, { name })))
     },
-  }
-}
-
-async function save(request: Promise<RecordModel>): Promise<ReadingRoute> {
-  try {
-    return toRoute(await request)
-  } catch (error) {
-    throw toFormError(error)
   }
 }
 

@@ -28,7 +28,7 @@ Each page in `src/App.tsx` lists the roles that may use it. The menu shows only 
 |---|---|
 | ผู้ใช้น้ำ (`/customers`): the customer register, searchable by name, house number or meter number, and filtered by หมู่, route and status | office, admin |
 | เพิ่มผู้ใช้น้ำ (`/customers/new`): register a customer, with their first meter (then they're active) or without one (pending) | office, admin |
-| A customer (`/customers/:id`): edit their details and status, register more meters, remove a meter | office, admin |
+| A customer (`/customers/:id`): edit their details and status, register their meter (one in use at a time; a pending customer becomes active), remove a meter | office, admin |
 | เส้นทาง (`/routes`): add and rename routes | office, admin |
 | พนักงาน (`/staff`): create staff, set their role and password, assign routes to meter readers, deactivate staff | admin |
 
@@ -37,7 +37,8 @@ Each page in `src/App.tsx` lists the roles that may use it. The menu shows only 
 | File | What |
 |---|---|
 | `src/auth.ts` | The `Auth` interface and its PocketBase implementation. It turns SDK errors into `invalid` or `unreachable`. |
-| `src/api.ts` | The `Api` interface: one repository per kind of data (`staff.ts`, `routes.ts`, `customers.ts`), each with a PocketBase implementation |
+| `src/api.ts` | The `Api` interface: one repository per kind of data (`staff.ts`, `routes.ts`, `customers.ts`), each with a PocketBase implementation. Pages take the `Api`. |
+| `src/queries.ts` | React Query cache keys shared between pages |
 | `src/formError.ts` | Turns PocketBase field validation errors into a `FormError`, and picks the Thai message to show |
 | `src/App.tsx` | The login form, or the pages for the logged-in role. It takes an `Auth` and an `Api`, so tests pass fakes (`src/testing.tsx`). |
 | `src/Layout.tsx`, `src/Home.tsx`, `src/*Page.tsx` | The menu and header, and the pages |

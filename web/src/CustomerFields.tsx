@@ -1,5 +1,5 @@
-import type { CustomerDetails, MeterSize } from './customers'
-import { meterSizeLabels } from './customerLabels'
+import type { CustomerDetails } from './customers'
+import { meterSizeLabels, meterSizes } from './customerLabels'
 import type { ReadingRoute } from './routes'
 
 /** The inputs for a customer's details; readCustomerDetails reads them. */
@@ -45,7 +45,7 @@ export function MeterFields({ required }: { required: boolean }) {
       <label>
         ขนาดมาตร{' '}
         <select name="size" defaultValue="1/2">
-          {(Object.keys(meterSizeLabels) as MeterSize[]).map((size) => (
+          {meterSizes.map((size) => (
             <option key={size} value={size}>
               {meterSizeLabels[size]}
             </option>

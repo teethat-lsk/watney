@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { customerStatusLabels } from './customerLabels'
-import type { Customer, CustomerRegister, CustomerStatus } from './customers'
-import { queryKeys } from './queryKeys'
-import type { RouteDirectory } from './routes'
+import type { Api } from './api'
+import { customerStatuses, customerStatusLabels } from './customerLabels'
+import type { Customer, CustomerStatus } from './customers'
+import { queryKeys, useRouteList } from './queries'
 
 interface Filter {
   /** Part of a name, house number or meter number. */
@@ -14,9 +14,9 @@ interface Filter {
   status: CustomerStatus | ''
 }
 
-export function CustomersPage({ register, routes }: { register: CustomerRegister; routes: RouteDirectory }) {
-  const customers = useQuery({ queryKey: queryKeys.customers, queryFn: () => register.list() })
-  const routeList = useQuery({ queryKey: queryKeys.routes, queryFn: () => routes.list() })
+export function CustomersPage({ api }: { api: Api }) {
+  const customers = useQuery({ queryKey: queryKeys.customers, queryFn: () => api.customers.list() })
+  const routes = useRouteList(api)
   const [filter, setFilter] = useState<Filter>({ text: '', moo: '', routeId: '', status: '' })
   const set = (key: keyof Filter) => (event: { target: { value: string } }) =>
     setFilter((current) => ({ ...current, [key]: event.target.value }))
@@ -48,7 +48,7 @@ export function CustomersPage({ register, routes }: { register: CustomerRegister
           เส้นทาง{' '}
           <select value={filter.routeId} onChange={set('routeId')}>
             <option value="">ทั้งหมด</option>
-            {routeList.data?.map((route) => (
+            {routes.data?.map((route) => (
               <option key={route.id} value={route.id}>
                 {route.name}
               </option>
@@ -59,7 +59,7 @@ export function CustomersPage({ register, routes }: { register: CustomerRegister
           สถานะ{' '}
           <select value={filter.status} onChange={set('status')}>
             <option value="">ทั้งหมด</option>
-            {(Object.keys(customerStatusLabels) as CustomerStatus[]).map((status) => (
+            {customerStatuses.map((status) => (
               <option key={status} value={status}>
                 {customerStatusLabels[status]}
               </option>

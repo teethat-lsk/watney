@@ -1,20 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import type { Api } from './api'
 import { CustomerFields, MeterFields } from './CustomerFields'
 import { customerMessages, readCustomerDetails, readMeter } from './customerForm'
-import { customerStatusLabels, meterSizeLabels, meterStatusLabels, thaiDate } from './customerLabels'
+import { customerStatuses, customerStatusLabels, meterSizeLabels, meterStatusLabels, thaiDate } from './customerLabels'
 import type { Customer, CustomerChanges, CustomerRegister, CustomerStatus, MeterStatus, NewMeter } from './customers'
 import { saveErrorMessage } from './formError'
-import { queryKeys } from './queryKeys'
-import type { ReadingRoute, RouteDirectory } from './routes'
+import { queryKeys, useRouteList } from './queries'
+import type { ReadingRoute } from './routes'
 
 /** One customer: edit their details and status, and manage their meters. */
-export function CustomerPage({ register, routes }: { register: CustomerRegister; routes: RouteDirectory }) {
+export function CustomerPage({ api }: { api: Api }) {
   const id = useParams().id!
+  const register = api.customers
   const queryClient = useQueryClient()
   const customer = useQuery({ queryKey: queryKeys.customer(id), queryFn: () => register.get(id) })
-  const routeList = useQuery({ queryKey: queryKeys.routes, queryFn: () => routes.list() })
+  const routes = useRouteList(api)
   // Also refreshes this customer, whose key starts with the same prefix.
   const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.customers })
   const setMeterStatus = useMutation({
@@ -33,7 +35,7 @@ export function CustomerPage({ register, routes }: { register: CustomerRegister;
       </p>
       <h1>{data.name}</h1>
       <p>สถานะ: {customerStatusLabels[data.status]}</p>
-      {routeList.data && <EditCustomerForm customer={data} routes={routeList.data} register={register} onSaved={refresh} />}
+      {routes.data && <EditCustomerForm customer={data} routes={routes.data} register={register} onSaved={refresh} />}
 
       <h2>มาตรน้ำ</h2>
       {setMeterStatus.isError && <p role="alert">{saveErrorMessage(setMeterStatus.error, customerMessages)}</p>}
@@ -71,7 +73,11 @@ export function CustomerPage({ register, routes }: { register: CustomerRegister;
           ))}
         </tbody>
       </table>
-      <NewMeterForm customerId={data.id} register={register} onAdded={refresh} />
+      {data.meters.some((meter) => meter.status === 'active') ? (
+        <p>ผู้ใช้น้ำมีมาตรที่ใช้งานอยู่ได้ครั้งละหนึ่งเครื่อง การเปลี่ยนมาตรจะรองรับในขั้นต่อไป</p>
+      ) : (
+        <NewMeterForm customerId={data.id} register={register} onAdded={refresh} />
+      )}
     </>
   )
 }
@@ -102,11 +108,14 @@ function EditCustomerForm({ customer, routes, register, onSaved }: EditCustomerF
       <label>
         สถานะ{' '}
         <select name="status" defaultValue={customer.status}>
-          {(Object.keys(customerStatusLabels) as CustomerStatus[]).map((status) => (
-            <option key={status} value={status}>
-              {customerStatusLabels[status]}
-            </option>
-          ))}
+          {/* `pending` is only for a new customer still waiting for their meter. */}
+          {customerStatuses
+            .filter((status) => status !== 'pending' || customer.status === 'pending')
+            .map((status) => (
+              <option key={status} value={status}>
+                {customerStatusLabels[status]}
+              </option>
+            ))}
         </select>
       </label>
       {update.isError && <p role="alert">{saveErrorMessage(update.error, customerMessages)}</p>}

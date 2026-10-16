@@ -6,12 +6,13 @@
 // - Customers (ผู้ใช้น้ำ) and meters: office staff and admins register and
 //   edit them; a meter reader sees those on their routes. Nobody deletes them
 //   through the API: customers are cancelled, meters removed.
-// - Every active customer has an active meter (hooks in customers.pb.js). A
-//   new customer starts as `pending` until a meter is linked; the web admin
-//   registers a customer with their first meter in one batch request, so
-//   batch is enabled.
-// - A customer has any number of meters (the link is on the meter), so more
-//   than one active meter per customer stays possible later.
+// - Hooks keep customers and meters consistent (customer_rules.pb.js): every
+//   active customer has an active meter, and for now at most one. A new
+//   customer is `pending` until a meter is linked; the web admin registers a
+//   customer with their first meter in one batch request, so batch is enabled.
+// - The link is on the meter, so a customer can have any number of meters
+//   (more than one active is a later issue). Meter numbers are unique,
+//   ignoring letter case.
 migrate((app) => {
   const OFFICE = '(@request.auth.role = "office" || @request.auth.role = "admin")'
 
@@ -79,7 +80,7 @@ migrate((app) => {
       { type: "autodate", name: "updated", onCreate: true, onUpdate: true },
     ],
     indexes: [
-      "CREATE UNIQUE INDEX idx_meters_number ON meters (number)",
+      "CREATE UNIQUE INDEX idx_meters_number ON meters (number COLLATE NOCASE)",
       "CREATE INDEX idx_meters_customer ON meters (customer)",
     ],
   })
