@@ -51,6 +51,27 @@ describe('App', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('ติดต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง')
   })
 
+  it('tells a deactivated staff member their account is closed', async () => {
+    renderApp({ auth: fakeAuth({ login: vi.fn(async () => Promise.reject(new LoginError('inactive'))) }) })
+
+    submitLogin('old@example.com', 'secret-password')
+
+    expect((await screen.findByRole('alert')).textContent).toBe('บัญชีนี้ถูกปิดใช้งาน ติดต่อผู้ดูแลระบบ')
+  })
+
+  it('goes back to the login form when the backend no longer accepts the stored session', async () => {
+    renderApp({ auth: fakeAuth({ current: () => admin, refresh: vi.fn(async () => null) }) })
+
+    expect(await screen.findByRole('form', { name: 'เข้าสู่ระบบ' })).toBeDefined()
+  })
+
+  it('shows the menus for the role the backend reports now, not the stored one', async () => {
+    renderApp({ auth: fakeAuth({ current: () => admin, refresh: vi.fn(async () => ({ ...admin, role: 'office' as const })) }) })
+
+    expect(await screen.findByText(/เจ้าหน้าที่สำนักงาน/)).toBeDefined()
+    expect(menuItems()).not.toContain('พนักงาน')
+  })
+
   it('starts on the home screen when a session is stored', () => {
     renderApp({ staff: admin })
     expect(screen.getByText('สมชาย')).toBeDefined()

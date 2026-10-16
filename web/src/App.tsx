@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import type { Api } from './api'
 import type { Auth, Role, Staff } from './auth'
@@ -19,6 +19,19 @@ export interface Page {
 function App({ auth, api }: { auth: Auth; api: Api }) {
   const [staff, setStaff] = useState<Staff | null>(() => auth.current())
   const [queryClient] = useState(() => new QueryClient())
+
+  // A session stored from before may be out of date: the role changed, or the account was deactivated.
+  useEffect(() => {
+    if (!auth.current()) return
+    let current = true
+    auth.refresh().then((refreshed) => {
+      // Unless they logged out meanwhile.
+      if (current) setStaff((shown) => (shown ? refreshed : null))
+    })
+    return () => {
+      current = false
+    }
+  }, [auth])
 
   if (!staff) {
     return <LoginForm auth={auth} onLogin={setStaff} />

@@ -1,8 +1,9 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // `pocketbase seed`: create the first admin staff user for local development,
-// or update its password, name and role (and reactivate it) if it already exists. Run it through
-// scripts/seed.sh, which loads the credentials from .env and applies migrations first.
+// or update its password, name and role (and reactivate it) if it already
+// exists. Run it through scripts/seed.sh, which loads the credentials from
+// .env and applies migrations first.
 $app.rootCmd.addCommand(new Command({
   use: "seed",
   short: "Create or update the first admin staff user from WATNEY_SEED_ADMIN_* variables",

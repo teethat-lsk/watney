@@ -85,18 +85,19 @@ function ids(res) {
  */
 function run(baseUrl, suites) {
   const tests = []
+  let suite = ""
   const t = {
     PASSWORD,
-    test: (name, fn) => tests.push({ suite: t.suite, name, fn }),
+    test: (name, fn) => tests.push({ suite, name, fn }),
     expect,
     ids,
     createStaff,
     guest: client(baseUrl, ""),
     as: (record) => client(baseUrl, record.newAuthToken()),
   }
-  for (const [name, suite] of suites) {
-    t.suite = name
-    suite(t)
+  for (const [name, register] of suites) {
+    suite = name
+    register(t)
   }
 
   let failed = 0

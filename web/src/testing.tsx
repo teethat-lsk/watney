@@ -13,12 +13,14 @@ export const office: Staff = { id: 'u2', email: 'office@example.com', name: 'ส
 export const reader: Staff = { id: 'u3', email: 'reader@example.com', name: 'สมปอง', role: 'meter_reader' }
 
 export function fakeAuth(overrides: Partial<Auth> = {}): Auth {
-  return {
+  const auth: Auth = {
     current: () => null,
     login: vi.fn(async () => admin),
+    refresh: vi.fn(async () => auth.current()),
     logout: vi.fn(),
     ...overrides,
   }
+  return auth
 }
 
 /** A staff directory kept in memory. Like the backend, it rejects a second account with the same email. */
@@ -30,7 +32,7 @@ export function fakeStaffDirectory(initial: StaffAccount[] = []): StaffDirectory
       if (accounts.some((account) => account.email === email)) {
         throw new FormError({ email: 'validation_not_unique' })
       }
-      const account = { id: `new${accounts.length + 1}`, email, name, role, active: true }
+      const account: StaffAccount = { id: `new${accounts.length + 1}`, email, name, role, active: true }
       accounts.push(account)
       return { ...account }
     }),

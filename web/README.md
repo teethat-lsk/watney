@@ -16,7 +16,7 @@ For pages that call the backend, start it separately in another terminal: `make 
 
 ## Login
 
-Staff log in with an account from PocketBase's `users` collection. For local development, create the first admin with `make seed` in `../backend` (see its README). The session is kept in the browser's local storage until you log out or it expires.
+Staff log in with an account from PocketBase's `users` collection. For local development, create the first admin with `make seed` in `../backend` (see its README). The session is kept in the browser's local storage until you log out or it expires. On start, the admin checks a stored session with the backend: it picks up a changed role, and goes back to the login form if the account was deactivated. A deactivated account gets its own message at login.
 
 The admin calls PocketBase at its own origin (`/api/…`). In development, the Vite dev server forwards `/api` to http://localhost:8090 (`vite.config.ts`). In production, PocketBase serves the built admin itself. Either way, no backend URL needs configuring. If PocketBase isn't running, the login form says it can't reach the server.
 

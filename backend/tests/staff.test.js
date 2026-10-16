@@ -64,19 +64,32 @@ module.exports = ({ test, expect, ids, guest, as, createStaff, PASSWORD }) => {
   })
 
   test("office staff and meter readers can't create staff", () => {
+    const admin = createStaff({ role: "admin" })
     for (const role of ["office", "meter_reader"]) {
-      const res = as(createStaff({ role })).create("users", newStaff({ role: "admin" }))
-      expect(res).toHaveStatus(400)
+      const account = newStaff({ role: "admin" })
+
+      expect(as(createStaff({ role })).create("users", account)).toHaveStatus(400)
+      expect(ids(as(admin).list("users", `filter=(email='${account.email}')`))).toEqual([])
     }
   })
 
-  test("office staff and meter readers can't change anyone's role, their own included", () => {
+  test("office staff and meter readers can't change anyone's role or status, their own included", () => {
     const reader = createStaff({ role: "meter_reader" })
     for (const role of ["office", "meter_reader"]) {
       const self = createStaff({ role })
-      expect(as(self).update("users", self.id, { role: "admin" })).toHaveStatus(404)
-      expect(as(self).update("users", reader.id, { role: "admin" })).toHaveStatus(404)
+      for (const target of [self, reader]) {
+        expect(as(self).update("users", target.id, { role: "admin" })).toHaveStatus(404)
+        expect(as(self).update("users", target.id, { active: false })).toHaveStatus(404)
+      }
     }
+  })
+
+  test("an admin can't demote or deactivate themselves, so they can't lock themselves out", () => {
+    const admin = createStaff({ role: "admin" })
+
+    expect(as(admin).update("users", admin.id, { role: "office" })).toHaveStatus(404)
+    expect(as(admin).update("users", admin.id, { active: false })).toHaveStatus(404)
+    expect(as(admin).update("users", admin.id, { name: "ชื่อใหม่" })).toHaveStatus(200)
   })
 
   test("nobody deletes staff through the API; they are deactivated instead", () => {

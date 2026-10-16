@@ -3,6 +3,7 @@ import { LoginError, type Auth, type LoginFailure, type Staff } from './auth'
 
 const failureMessages: Record<LoginFailure | 'unknown', string> = {
   invalid: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  inactive: 'บัญชีนี้ถูกปิดใช้งาน ติดต่อผู้ดูแลระบบ',
   unreachable: 'ติดต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง',
   unknown: 'เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้ง',
 }

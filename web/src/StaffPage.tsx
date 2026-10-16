@@ -15,6 +15,8 @@ const messages: FieldMessages = {
   },
 }
 
+const staffQuery = ['staff']
+
 interface StaffPageProps {
   directory: StaffDirectory
   /** The logged-in admin, who can't deactivate themselves or change their own role. */
@@ -23,9 +25,9 @@ interface StaffPageProps {
 
 export function StaffPage({ directory, self }: StaffPageProps) {
   const queryClient = useQueryClient()
-  const staff = useQuery({ queryKey: ['staff'], queryFn: () => directory.list() })
+  const accounts = useQuery({ queryKey: staffQuery, queryFn: () => directory.list() })
   const [editing, setEditing] = useState<StaffAccount | null>(null)
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['staff'] })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: staffQuery })
   const setActive = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => directory.update(id, { active }),
     onSuccess: refresh,
@@ -49,10 +51,10 @@ export function StaffPage({ directory, self }: StaffPageProps) {
         <NewStaffForm directory={directory} onCreated={refresh} />
       )}
 
-      {staff.isPending && <p>กำลังโหลด…</p>}
-      {staff.isError && <p role="alert">โหลดรายชื่อพนักงานไม่สำเร็จ</p>}
+      {accounts.isPending && <p>กำลังโหลด…</p>}
+      {accounts.isError && <p role="alert">โหลดรายชื่อพนักงานไม่สำเร็จ</p>}
       {setActive.isError && <p role="alert">{saveErrorMessage(setActive.error, messages)}</p>}
-      {staff.data && (
+      {accounts.data && (
         <table>
           <thead>
             <tr>
@@ -64,7 +66,7 @@ export function StaffPage({ directory, self }: StaffPageProps) {
             </tr>
           </thead>
           <tbody>
-            {staff.data.map((account) => (
+            {accounts.data.map((account) => (
               <tr key={account.id}>
                 <td>{account.name}</td>
                 <td>{account.email}</td>
@@ -153,7 +155,7 @@ function EditStaffForm({ account, isSelf, directory, onDone }: EditStaffFormProp
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
-    const changes: StaffChanges = { name: String(data.get('name')) }
+    const changes: StaffChanges = { name: String(data.get('name')), email: String(data.get('email')) }
     // A disabled field isn't submitted: admins can't change their own role.
     if (data.has('role')) changes.role = data.get('role') as Role
     if (data.get('password')) changes.password = String(data.get('password'))
@@ -162,9 +164,12 @@ function EditStaffForm({ account, isSelf, directory, onDone }: EditStaffFormProp
 
   return (
     <form aria-label="แก้ไขพนักงาน" onSubmit={handleSubmit}>
-      <h2>แก้ไขพนักงาน: {account.email}</h2>
+      <h2>แก้ไขพนักงาน: {account.name || account.email}</h2>
       <label>
         ชื่อ <input name="name" defaultValue={account.name} required />
+      </label>
+      <label>
+        อีเมล <input name="email" type="email" defaultValue={account.email} required />
       </label>
       <label>
         บทบาท <RoleSelect name="role" defaultValue={account.role} disabled={isSelf} />

@@ -1,14 +1,10 @@
 import type PocketBase from 'pocketbase'
 import type { RecordModel } from 'pocketbase'
-import type { Role } from './auth'
+import { toStaff, type Role, type Staff } from './auth'
 import { toFormError } from './formError'
 
 /** A staff account as admins manage it. Inactive accounts can't log in. */
-export interface StaffAccount {
-  id: string
-  email: string
-  name: string
-  role: Role
+export interface StaffAccount extends Staff {
   active: boolean
 }
 
@@ -21,6 +17,7 @@ export interface NewStaffAccount {
 
 export interface StaffChanges {
   name?: string
+  email?: string
   role?: Role
   password?: string
   active?: boolean
@@ -40,31 +37,29 @@ export function pocketbaseStaffDirectory(pb: PocketBase): StaffDirectory {
       return (await users.getFullList({ sort: 'name' })).map(toAccount)
     },
 
-    async create({ password, ...account }) {
-      try {
-        return toAccount(await users.create({ ...account, password, passwordConfirm: password, active: true }))
-      } catch (error) {
-        throw toFormError(error)
-      }
+    create({ password, ...account }) {
+      return save(users.create({ ...account, ...withConfirmation(password), active: true }))
     },
 
-    async update(id, { password, ...changes }) {
-      const body = password ? { ...changes, password, passwordConfirm: password } : changes
-      try {
-        return toAccount(await users.update(id, body))
-      } catch (error) {
-        throw toFormError(error)
-      }
+    update(id, { password, ...changes }) {
+      return save(users.update(id, { ...changes, ...withConfirmation(password) }))
     },
   }
 }
 
-function toAccount(record: RecordModel): StaffAccount {
-  return {
-    id: record.id,
-    email: record.email,
-    name: record.name ?? '',
-    role: record.role,
-    active: record.active,
+/** PocketBase wants a new password twice. */
+function withConfirmation(password: string | undefined) {
+  return password ? { password, passwordConfirm: password } : {}
+}
+
+async function save(request: Promise<RecordModel>): Promise<StaffAccount> {
+  try {
+    return toAccount(await request)
+  } catch (error) {
+    throw toFormError(error)
   }
+}
+
+function toAccount(record: RecordModel): StaffAccount {
+  return { ...toStaff(record), active: record.active }
 }

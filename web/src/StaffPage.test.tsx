@@ -69,19 +69,21 @@ describe('Staff page', () => {
     expect((await within(form).findByRole('alert')).textContent).toBe('อีเมลนี้มีผู้ใช้แล้ว')
   })
 
-  it("changes a staff member's name, role and password", async () => {
+  it("changes a staff member's name, email, role and password", async () => {
     const api = openStaffPage()
     fireEvent.click(within(await row('สมปอง')).getByRole('button', { name: 'แก้ไข' }))
     const form = screen.getByRole('form', { name: 'แก้ไขพนักงาน' })
 
     fill(form, 'ชื่อ', 'สมปองใหม่')
+    fill(form, 'อีเมล', 'pong@example.com')
     fill(form, 'บทบาท', 'office')
     fill(form, 'รหัสผ่านใหม่', 'another-password')
     fireEvent.click(within(form).getByRole('button', { name: 'บันทึก' }))
 
-    expect(columns(await row('สมปองใหม่'))[2]).toBe('เจ้าหน้าที่สำนักงาน')
+    expect(columns(await row('สมปองใหม่'))).toEqual(['สมปองใหม่', 'pong@example.com', 'เจ้าหน้าที่สำนักงาน', 'ใช้งาน'])
     expect(api.staff.update).toHaveBeenCalledWith('u3', {
       name: 'สมปองใหม่',
+      email: 'pong@example.com',
       role: 'office',
       password: 'another-password',
     })
@@ -95,7 +97,7 @@ describe('Staff page', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'บันทึก' }))
 
     expect(await screen.findByRole('form', { name: 'เพิ่มพนักงาน' })).toBeDefined()
-    expect(api.staff.update).toHaveBeenCalledWith('u3', { name: 'สมปอง', role: 'meter_reader' })
+    expect(api.staff.update).toHaveBeenCalledWith('u3', { name: 'สมปอง', email: 'reader@example.com', role: 'meter_reader' })
   })
 
   it('deactivates and reactivates a staff account', async () => {
