@@ -90,8 +90,9 @@ Ask two multi-select questions: one for the start list and one for the stop list
 2. **Start** the backend and the web admin, whichever the user picked:
    - If you'll work against them in this session, run `make backend` and `make web` in the background, so you can read their logs.
    - Otherwise, hand the user those commands to run in their own terminals.
-3. **Mobile:** always hand `make mobile` to the user, because `flutter run` takes keystrokes (`r` for hot reload, `q` to quit). Walk through phone setup with doc §6.1 and §6.2 when the phone isn't connected yet.
-4. **Wait** until each component answers: `curl -fsS http://localhost:8090/api/health` and `curl -fsS -o /dev/null http://localhost:5173`.
+3. **Staff login:** admin pages and field-app screens need a staff account. If `grep -cE '^WATNEY_SEED_ADMIN_(EMAIL|PASSWORD)=.+' backend/.env` doesn't print 2, the admin was likely never seeded. Hand the user the seed steps from doc §4.
+4. **Mobile:** always hand `make mobile` to the user, because `flutter run` takes keystrokes (`r` for hot reload, `q` to quit). Walk through phone setup with doc §6.1 and §6.2 when the phone isn't connected yet.
+5. **Wait** until each component answers: `curl -fsS http://localhost:8090/api/health` and `curl -fsS -o /dev/null http://localhost:5173`.
 
 Done when every needed component answers.
 

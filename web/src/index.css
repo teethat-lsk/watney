@@ -8,3 +8,82 @@ body {
   margin: 0;
   padding: 2rem;
 }
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.app-header nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.app-header nav a.active {
+  font-weight: bold;
+}
+
+.app-header p {
+  margin-left: auto;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+form h2 {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+form [role='alert'] {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+[role='alert'] {
+  color: #c62828;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+fieldset p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+label.checkbox {
+  flex-direction: row;
+  align-items: center;
+}

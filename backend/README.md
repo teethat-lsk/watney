@@ -8,13 +8,14 @@ The PocketBase version is pinned in [`.pocketbase-version`](.pocketbase-version)
 
 ## Commands
 
-Run in this folder (or `make backend`, `make backend-setup`, `make backend-check` from the repo root):
+Run in this folder (or `make backend`, `make backend-setup`, `make backend-check`, `make backend-seed` from the repo root):
 
 | Command | What it does |
 |---|---|
 | `make setup` | Download the pinned PocketBase into `bin/` |
 | `make dev` | Start PocketBase on `0.0.0.0:8090` (set `PB_HTTP` to change the address) |
-| `make check` | Boot PocketBase on a throwaway data dir with the committed migrations and hooks |
+| `make check` | Boot PocketBase on a throwaway data dir with the committed migrations and hooks, check that a seeded admin can log in, then run the API tests in `tests/` |
+| `make seed` | Create the first admin staff user from `.env`, or update its password and name |
 
 - Dashboard: http://localhost:8090/_/
 - REST API: http://localhost:8090/api/ (health check: `/api/health`)
@@ -25,12 +26,61 @@ On first start PocketBase prints a link to create the first superuser (dashboard
 bin/pocketbase superuser upsert you@example.com 'a-strong-password' --dir pb_data
 ```
 
+A superuser is an operator account for this dashboard. Staff log in to the apps with accounts in the `users` collection instead. Each account has a `role` (`meter_reader`, `office` or `admin`) and an `active` flag. Admins create and edit staff, set their role and password, and deactivate them; other staff can only see their own account. A deactivated account can't log in, and its existing sessions stop working. A session lasts 45 days, so a meter reader who opens the field app once a monthly round stays logged in; each app start renews it. Staff are never deleted through the API. For local development, create the first admin staff user like this:
+
+```bash
+cp .env.example .env   # then change the email and password in .env
+make seed
+```
+
+`.env` is git-ignored. You can run `make seed` while PocketBase is running, and run it again to change the password (or to reactivate that admin). After that, the admin creates the other staff accounts in the web admin.
+
+## Collections
+
+| Collection | What | Access |
+|---|---|---|
+| `users` | Staff: `role`, `active`, and a meter reader's `routes` | Admins manage staff; other staff see only themselves |
+| `routes` | Meter-reading routes (เส้นทาง) | Office staff and admins manage them; a meter reader sees their own |
+| `customers` | ผู้ใช้น้ำ: house number, หมู่, name, phone, `status` (`pending`, `active`, `water_cut`, `cancelled`), route | Office staff and admins manage them; a meter reader sees those on their routes |
+| `meters` | The meter register: number (unique, ignoring letter case), size, install date, starting reading, customer, `status` (`active`, `removed`) | Same as customers |
+
+Nothing in these collections is deleted through the API: staff are deactivated, customers cancelled, meters removed.
+
+Hooks keep customers and meters consistent (`pb_hooks/customer_rules.pb.js`), on every save from the API or the dashboard:
+
+- Every active customer has an active meter (ADR 0001). A customer can't become active without one, and an active customer's active meter can't be removed, moved to another customer, or deleted.
+- A customer has at most one active meter. Replacing a meter is a later issue; the schema already allows more.
+- `pending` is only for a new customer waiting for their meter. Registering the meter makes them active, and no customer goes back to `pending`.
+
+The web admin registers a customer with their first meter in one batch request (`/api/batch`, enabled by the migration), so both are saved or neither is.
+
+## API tests
+
+`tests/` checks the access rules and hooks from outside, the way an app sees them: each test sends HTTP requests as a given role and checks what the API allows. PocketBase runs the tests itself, so they need no extra tools. `make check` boots a throwaway PocketBase, then runs `pocketbase api-tests <url> --hooksDir tests`, which loads every `tests/*.test.js` suite. Fixtures are saved straight into the throwaway database, bypassing the rules; requests go over HTTP, through them.
+
+Every change to an API rule or hook comes with tests here. A suite exports a function that registers tests:
+
+```js
+module.exports = ({ test, expect, ids, guest, as, createStaff, PASSWORD }) => {
+  test("office staff can't create staff", () => {
+    const office = createStaff({ role: "office" })
+    expect(as(office).create("users", { /* … */ })).toHaveStatus(400)
+  })
+}
+```
+
+`as(record)` and `guest` send requests (`list`, `view`, `create`, `update`, `remove`, `login`, `batch`, `send`). Fixtures (`createStaff`, `createSuperuser`, `createRoute`, `createCustomer`, `createMeter`) skip the hooks, so a test can set up any state directly. `tests/harness.js` has the rest. When a rule denies a request, PocketBase answers in one of these ways: a list leaves out the records the rule hides, a view or update of a hidden record returns 404, a create returns 400, and an action with no rule at all (superusers only) returns 403.
+
 ## Layout
 
 | Path | In git | Purpose |
 |---|---|---|
 | `pb_migrations/` | yes | Schema migrations (JS). With automigrate on, collection changes made in the dashboard are written here — commit them. |
-| `pb_hooks/` | yes | Server-side JS hooks (`*.pb.js`) |
+| `pb_hooks/` | yes | Server-side JS hooks (`*.pb.js`). `seed.pb.js` adds the `seed` command. |
+| `tests/` | yes | API tests for the access rules and hooks (see above) |
+| `scripts/` | yes | `install-pocketbase.sh`, `serve.sh`, `check.sh`, `seed.sh` |
+| `.env.example` | yes | Keys for `.env`, the local seed credentials |
+| `.env` | no | Your local seed credentials |
 | `pb_data/` | no | Local SQLite database, uploaded files, logs |
 | `bin/` | no | The downloaded PocketBase binary |
 

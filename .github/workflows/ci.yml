@@ -1,0 +1,62 @@
+name: CI
+
+# One job per component, each running the same `make <component>-check` as a developer does locally.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (migrations, hooks, API tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: make backend-check
+
+  web:
+    name: web (lint, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: make web-setup
+      - run: make web-check
+
+  mobile:
+    name: mobile (format, analyze, test, debug APK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+      - run: make mobile-setup
+      - run: make mobile-check
+      # Built for the Android emulator's address of the development computer;
+      # for a real phone, build locally with PB_URL set (mobile/README.md).
+      - run: make -C mobile apk
+      - uses: actions/upload-artifact@v7
+        with:
+          name: watney-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

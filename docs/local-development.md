@@ -61,7 +61,7 @@ flowchart LR
 | PocketBase | 0.40.5, pinned in `backend/.pocketbase-version` | backend and server database | backend (web and mobile need it running) |
 | Node.js | 20 or newer (LTS) | web admin tooling | web |
 | pnpm | 11 | web package manager | web |
-| Flutter SDK (includes Dart) | stable, with Dart 3.13+ | field app | mobile |
+| Flutter SDK (includes Dart) | stable; match `flutter-version` in `.github/workflows/ci.yml` so format and analyze agree with CI (needs Dart 3.13+) | field app | mobile |
 | JDK | 21 (17+ required) | Android Gradle builds | mobile |
 | Android SDK: cmdline-tools, platform-tools (`adb`), platform 36, NDK 28.2.13676358 | — | build and install the APK | mobile |
 | Android phone | Android 11+ for Wi-Fi debugging (the app itself needs Android 7.0, API 24) | run the field app | mobile |
@@ -215,12 +215,14 @@ Already in the scaffold:
 | `cupertino_icons` | iOS-style icons (template default; can be removed) |
 | `flutter_test` (SDK) | unit and widget tests (`flutter test`) |
 | `flutter_lints` | lint rules for `flutter analyze` |
+| `pocketbase` | backend client: auth, records, photo upload |
+| `flutter_secure_storage` | keep the login session in encrypted storage |
+| `http` (dev) | `MockClient`, a fake backend for testing the PocketBase code |
 
 Planned. Run these from `mobile/`:
 
 | Package | Usage | Install | Android setup |
 |---|---|---|---|
-| `pocketbase` | backend client: auth, records, photo upload | `flutter pub add pocketbase` | — |
 | `flutter_riverpod` | state management | `flutter pub add flutter_riverpod` | — |
 | `drift` + `drift_flutter` | local SQLite: the route cache and the outbox for offline sync | `flutter pub add drift drift_flutter` | — |
 | `drift_dev` + `build_runner` | generate Drift's typed database code | `flutter pub add dev:drift_dev dev:build_runner`; regenerate with `dart run build_runner build` | — |
@@ -231,7 +233,6 @@ Planned. Run these from `mobile/`:
 | `esc_pos_utils_plus` | build the ESC/POS receipt bytes (text, image, QR) | `flutter pub add esc_pos_utils_plus` | — |
 | `print_bluetooth_thermal` | send those bytes to the printer over Bluetooth Classic | `flutter pub add print_bluetooth_thermal` | Bluetooth permissions in `AndroidManifest.xml` (see the package README) |
 | `qr_flutter` | show the PromptPay QR on screen | `flutter pub add qr_flutter` | — |
-| `flutter_secure_storage` | keep the login token in encrypted storage | `flutter pub add flutter_secure_storage` | — |
 | `mocktail` | fakes and mocks in unit tests | `flutter pub add dev:mocktail` | — |
 | `integration_test` (SDK) | end-to-end tests on a device | `flutter pub add 'dev:integration_test:{"sdk":"flutter"}'` | — |
 
@@ -278,7 +279,14 @@ You can also create the superuser from the command line:
 backend/bin/pocketbase superuser upsert you@example.com 'a-strong-password' --dir backend/pb_data
 ```
 
-A superuser is an operator account for the PocketBase dashboard, not an app login (tech-spec §8). Staff logins for the admin and the field app come with issue #2. It adds a seed command that creates the first admin staff user from a git-ignored `.env` file, with `.env.example` listing the keys.
+A superuser is an operator account for the PocketBase dashboard, not an app login (tech-spec §8). To log in to the web admin, create the first admin staff user. It reads its email and password from a git-ignored `backend/.env`:
+
+```bash
+cp backend/.env.example backend/.env   # then change the email and password
+make backend-seed                      # run it again later to change the password
+```
+
+Then run `make backend` and `make web`, open http://localhost:5173, and log in with those credentials.
 
 ## 5. Daily startup
 
@@ -345,7 +353,9 @@ New-NetFirewallRule -DisplayName "Watney PocketBase" -Direction Inbound -Protoco
 
 Find the PC's LAN IP with `ipconfig` on Windows (**Wireless LAN adapter Wi-Fi → IPv4 Address**). To test, open `http://<pc-ip>:8090/api/health` in the phone's browser.
 
-The local backend uses plain HTTP. If the app reports that cleartext traffic isn't permitted, add `android:usesCleartextTraffic="true"` to the `<application>` element in `mobile/android/app/src/debug/AndroidManifest.xml`. That file only applies to debug builds.
+Then start the app with that address built in: `make mobile PB_URL=http://<pc-ip>:8090` (see [mobile/README](../mobile/README.md#backend-address)). The login screen shows the address the app uses.
+
+The local backend uses plain HTTP. Debug builds allow it (`android:usesCleartextTraffic="true"` in `mobile/android/app/src/debug/AndroidManifest.xml`, which only applies to debug builds).
 
 ### 6.3 Emulator (optional, limited)
 
@@ -363,7 +373,7 @@ The emulator can't run inside this WSL setup, because there's no `/dev/kvm`. You
 | `types.d.ts` | type definitions for hooks (§3.4) |
 
 - **Browse and edit data** in the dashboard. Collection changes you make there are written as migration files into `backend/pb_migrations/`. Commit those files so everyone gets the same schema.
-- **Reset:** stop PocketBase, run `rm -rf backend/pb_data`, then start it again. The migrations rebuild the schema. Create the superuser again, and re-seed once #2's seed command exists.
+- **Reset:** stop PocketBase, run `rm -rf backend/pb_data`, then start it again. The migrations rebuild the schema. Create the superuser again, and run `make backend-seed` again.
 
 **Phone**: the app's own SQLite database (Drift). To reset it, use **Settings → Apps → Watney → Storage → Clear storage**, or run `adb shell pm clear com.example.watney`.
 
@@ -375,7 +385,7 @@ The emulator can't run inside this WSL setup, because there's no `/dev/kvm`. You
 | Gradle fails with "Unsupported class file major version" or another JDK error | Point Flutter at JDK 21 (§2.5). |
 | `flutter doctor` shows ✗ for Chrome or the Linux toolchain | Ignore it (Android only), or turn those targets off (§2.4). |
 | The phone can't open `http://<pc-ip>:8090/api/health` | Re-run the port proxy (the WSL IP changed). Check that the Wi-Fi is a Private network in Windows and that the phone is on the same Wi-Fi. Guest networks often block device-to-device traffic. |
-| The app says cleartext HTTP isn't permitted | Allow it in the debug manifest (§6.2). |
+| The app can't reach the server | Check the address on its login screen. Rebuild with the right one: `make mobile PB_URL=http://<pc-ip>:8090` (§6.2). |
 | `pnpm install` warns about ignored build scripts | Allow that package under `allowBuilds` in `web/pnpm-workspace.yaml`. |
 | Port 8090 or 5173 is already in use | Find the other process with `ss -ltnp \| grep -E ':8090\|:5173'` and stop it, or run `PB_HTTP=0.0.0.0:8092 make backend` (8091 belongs to `make backend-check`). Clients then need the new port. |
 | `adb connect` fails after the phone sleeps or restarts | The wireless-debugging port changes. Connect again with the new port. |
