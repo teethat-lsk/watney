@@ -86,22 +86,24 @@ describe('App', () => {
     expect(screen.getByRole('form', { name: 'เข้าสู่ระบบ' })).toBeDefined()
   })
 
-  it('shows admins the staff menu', () => {
-    renderApp({ staff: admin })
-    expect(menuItems()).toContain('พนักงาน')
-  })
-
-  it('shows office staff and meter readers no staff menu', () => {
-    for (const staff of [office, reader]) {
+  it('shows each role only the menus it may use', () => {
+    const expected = [
+      [admin, ['หน้าแรก', 'ผู้ใช้น้ำ', 'เส้นทาง', 'พนักงาน']],
+      [office, ['หน้าแรก', 'ผู้ใช้น้ำ', 'เส้นทาง']],
+      [reader, ['หน้าแรก']],
+    ] as const
+    for (const [staff, menus] of expected) {
       renderApp({ staff })
-      expect(menuItems()).not.toContain('พนักงาน')
+      expect(menuItems()).toEqual(menus)
       cleanup()
     }
   })
 
   it("tells staff who open a page their role can't use that they have no access", () => {
-    renderApp({ staff: office, path: '/staff' })
-
-    expect(screen.getByRole('heading', { name: 'ไม่มีสิทธิ์เข้าถึงหน้านี้' })).toBeDefined()
+    for (const [staff, path] of [[office, '/staff'], [reader, '/customers'], [reader, '/customers/c1']] as const) {
+      renderApp({ staff, path })
+      expect(screen.getByRole('heading', { name: 'ไม่มีสิทธิ์เข้าถึงหน้านี้' })).toBeDefined()
+      cleanup()
+    }
   })
 })

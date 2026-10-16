@@ -11,6 +11,7 @@ const record = {
   name: 'สมปอง',
   role: 'meter_reader',
   active: true,
+  routes: ['r1'],
   verified: true,
 }
 
@@ -35,7 +36,9 @@ describe('pocketbaseStaffDirectory', () => {
 
     const accounts = await pocketbaseStaffDirectory(new PocketBase('http://pb.test')).list()
 
-    expect(accounts).toEqual([{ id: 'u3', email: 'reader@example.com', name: 'สมปอง', role: 'meter_reader', active: true }])
+    expect(accounts).toEqual([
+      { id: 'u3', email: 'reader@example.com', name: 'สมปอง', role: 'meter_reader', active: true, routes: ['r1'] },
+    ])
   })
 
   it('creates an account that can log in straight away', async () => {
