@@ -70,3 +70,20 @@ td {
   text-align: left;
   border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
+
+fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+fieldset p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+label.checkbox {
+  flex-direction: row;
+  align-items: center;
+}

@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import type { Role, Staff } from './auth'
+import type { Api } from './api'
 import { saveErrorMessage, type FieldMessages } from './formError'
+import { queryKeys, useRouteList } from './queries'
 import { roleLabels, roles } from './roles'
+import type { ReadingRoute } from './routes'
 import type { NewStaffAccount, StaffAccount, StaffChanges, StaffDirectory } from './staff'
 
 const messages: FieldMessages = {
@@ -15,19 +18,24 @@ const messages: FieldMessages = {
   },
 }
 
-const staffQuery = ['staff']
-
 interface StaffPageProps {
-  directory: StaffDirectory
+  api: Api
   /** The logged-in admin, who can't deactivate themselves or change their own role. */
   self: Staff
 }
 
-export function StaffPage({ directory, self }: StaffPageProps) {
+export function StaffPage({ api, self }: StaffPageProps) {
+  const directory = api.staff
   const queryClient = useQueryClient()
-  const accounts = useQuery({ queryKey: staffQuery, queryFn: () => directory.list() })
+  const accounts = useQuery({ queryKey: queryKeys.staff, queryFn: () => directory.list() })
+  const routeList = useRouteList(api)
   const [editing, setEditing] = useState<StaffAccount | null>(null)
-  const refresh = () => queryClient.invalidateQueries({ queryKey: staffQuery })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.staff })
+  const routeNames = (ids: string[]) =>
+    (routeList.data ?? [])
+      .filter((route) => ids.includes(route.id))
+      .map((route) => route.name)
+      .join(', ')
   const setActive = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => directory.update(id, { active }),
     onSuccess: refresh,
@@ -36,10 +44,11 @@ export function StaffPage({ directory, self }: StaffPageProps) {
   return (
     <>
       <h1>พนักงาน</h1>
-      {editing ? (
+      {editing && routeList.data ? (
         <EditStaffForm
           key={editing.id}
           account={editing}
+          routes={routeList.data}
           isSelf={editing.id === self.id}
           directory={directory}
           onDone={() => {
@@ -51,16 +60,17 @@ export function StaffPage({ directory, self }: StaffPageProps) {
         <NewStaffForm directory={directory} onCreated={refresh} />
       )}
 
-      {accounts.isPending && <p>กำลังโหลด…</p>}
-      {accounts.isError && <p role="alert">โหลดรายชื่อพนักงานไม่สำเร็จ</p>}
+      {(accounts.isPending || routeList.isPending) && <p>กำลังโหลด…</p>}
+      {(accounts.isError || routeList.isError) && <p role="alert">โหลดรายชื่อพนักงานไม่สำเร็จ</p>}
       {setActive.isError && <p role="alert">{saveErrorMessage(setActive.error, messages)}</p>}
-      {accounts.data && (
+      {accounts.data && routeList.data && (
         <table>
           <thead>
             <tr>
               <th>ชื่อ</th>
               <th>อีเมล</th>
               <th>บทบาท</th>
+              <th>เส้นทาง</th>
               <th>สถานะ</th>
               <th></th>
             </tr>
@@ -71,6 +81,7 @@ export function StaffPage({ directory, self }: StaffPageProps) {
                 <td>{account.name}</td>
                 <td>{account.email}</td>
                 <td>{roleLabels[account.role]}</td>
+                <td>{routeNames(account.routes)}</td>
                 <td>{account.active ? 'ใช้งาน' : 'ปิดใช้งาน'}</td>
                 <td>
                   <button type="button" onClick={() => setEditing(account)}>
@@ -141,12 +152,13 @@ function NewStaffForm({ directory, onCreated }: { directory: StaffDirectory; onC
 
 interface EditStaffFormProps {
   account: StaffAccount
+  routes: ReadingRoute[]
   isSelf: boolean
   directory: StaffDirectory
   onDone: () => void
 }
 
-function EditStaffForm({ account, isSelf, directory, onDone }: EditStaffFormProps) {
+function EditStaffForm({ account, routes, isSelf, directory, onDone }: EditStaffFormProps) {
   const update = useMutation({
     mutationFn: (changes: StaffChanges) => directory.update(account.id, changes),
     onSuccess: onDone,
@@ -158,6 +170,7 @@ function EditStaffForm({ account, isSelf, directory, onDone }: EditStaffFormProp
     const changes: StaffChanges = { name: String(data.get('name')), email: String(data.get('email')) }
     // A disabled field isn't submitted: admins can't change their own role.
     if (data.has('role')) changes.role = data.get('role') as Role
+    changes.routes = data.getAll('routes').map(String)
     if (data.get('password')) changes.password = String(data.get('password'))
     update.mutate(changes)
   }
@@ -174,6 +187,17 @@ function EditStaffForm({ account, isSelf, directory, onDone }: EditStaffFormProp
       <label>
         บทบาท <RoleSelect name="role" defaultValue={account.role} disabled={isSelf} />
       </label>
+      {routes.length > 0 && (
+        <fieldset>
+          <legend>เส้นทางที่จดมาตร (สำหรับเจ้าหน้าที่จดมาตร)</legend>
+          {routes.map((route) => (
+            <label key={route.id} className="checkbox">
+              <input type="checkbox" name="routes" value={route.id} defaultChecked={account.routes.includes(route.id)} />{' '}
+              {route.name}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <label>
         รหัสผ่านใหม่ <input name="password" type="password" autoComplete="new-password" minLength={8} placeholder="เว้นว่างถ้าไม่เปลี่ยน" />
       </label>

@@ -6,7 +6,7 @@ import { roleLabels } from './roles'
 interface LayoutProps {
   staff: Staff
   /** The pages the logged-in role may use. */
-  menu: Pick<Page, 'path' | 'label'>[]
+  menu: Required<Pick<Page, 'path' | 'label'>>[]
   onLogout: () => void
 }
 

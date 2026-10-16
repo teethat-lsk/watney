@@ -1,11 +1,13 @@
 import type PocketBase from 'pocketbase'
 import type { RecordModel } from 'pocketbase'
 import { toStaff, type Role, type Staff } from './auth'
-import { toFormError } from './formError'
+import { withFormErrors } from './formError'
 
 /** A staff account as admins manage it. Inactive accounts can't log in. */
 export interface StaffAccount extends Staff {
   active: boolean
+  /** The ids of the routes a meter reader reads. */
+  routes: string[]
 }
 
 export interface NewStaffAccount {
@@ -21,6 +23,7 @@ export interface StaffChanges {
   role?: Role
   password?: string
   active?: boolean
+  routes?: string[]
 }
 
 /** Staff account management. Save failures the user can fix are thrown as FormError. */
@@ -37,12 +40,12 @@ export function pocketbaseStaffDirectory(pb: PocketBase): StaffDirectory {
       return (await users.getFullList({ sort: 'name' })).map(toAccount)
     },
 
-    create({ password, ...account }) {
-      return save(users.create({ ...account, ...withConfirmation(password), active: true }))
+    async create({ password, ...account }) {
+      return toAccount(await withFormErrors(users.create({ ...account, ...withConfirmation(password), active: true })))
     },
 
-    update(id, { password, ...changes }) {
-      return save(users.update(id, { ...changes, ...withConfirmation(password) }))
+    async update(id, { password, ...changes }) {
+      return toAccount(await withFormErrors(users.update(id, { ...changes, ...withConfirmation(password) })))
     },
   }
 }
@@ -52,14 +55,6 @@ function withConfirmation(password: string | undefined) {
   return password ? { password, passwordConfirm: password } : {}
 }
 
-async function save(request: Promise<RecordModel>): Promise<StaffAccount> {
-  try {
-    return toAccount(await request)
-  } catch (error) {
-    throw toFormError(error)
-  }
-}
-
 function toAccount(record: RecordModel): StaffAccount {
-  return { ...toStaff(record), active: record.active }
+  return { ...toStaff(record), active: record.active, routes: record.routes ?? [] }
 }
