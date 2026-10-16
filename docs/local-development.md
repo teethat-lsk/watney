@@ -352,7 +352,9 @@ New-NetFirewallRule -DisplayName "Watney PocketBase" -Direction Inbound -Protoco
 
 Find the PC's LAN IP with `ipconfig` on Windows (**Wireless LAN adapter Wi-Fi → IPv4 Address**). To test, open `http://<pc-ip>:8090/api/health` in the phone's browser.
 
-The local backend uses plain HTTP. If the app reports that cleartext traffic isn't permitted, add `android:usesCleartextTraffic="true"` to the `<application>` element in `mobile/android/app/src/debug/AndroidManifest.xml`. That file only applies to debug builds.
+Then start the app with that address built in: `make mobile PB_URL=http://<pc-ip>:8090` (see [mobile/README](../mobile/README.md#backend-address)). The login screen shows the address the app uses.
+
+The local backend uses plain HTTP. Debug builds allow it (`android:usesCleartextTraffic="true"` in `mobile/android/app/src/debug/AndroidManifest.xml`, which only applies to debug builds).
 
 ### 6.3 Emulator (optional, limited)
 
@@ -382,7 +384,7 @@ The emulator can't run inside this WSL setup, because there's no `/dev/kvm`. You
 | Gradle fails with "Unsupported class file major version" or another JDK error | Point Flutter at JDK 21 (§2.5). |
 | `flutter doctor` shows ✗ for Chrome or the Linux toolchain | Ignore it (Android only), or turn those targets off (§2.4). |
 | The phone can't open `http://<pc-ip>:8090/api/health` | Re-run the port proxy (the WSL IP changed). Check that the Wi-Fi is a Private network in Windows and that the phone is on the same Wi-Fi. Guest networks often block device-to-device traffic. |
-| The app says cleartext HTTP isn't permitted | Allow it in the debug manifest (§6.2). |
+| The app can't reach the server | Check the address on its login screen. Rebuild with the right one: `make mobile PB_URL=http://<pc-ip>:8090` (§6.2). |
 | `pnpm install` warns about ignored build scripts | Allow that package under `allowBuilds` in `web/pnpm-workspace.yaml`. |
 | Port 8090 or 5173 is already in use | Find the other process with `ss -ltnp \| grep -E ':8090\|:5173'` and stop it, or run `PB_HTTP=0.0.0.0:8092 make backend` (8091 belongs to `make backend-check`). Clients then need the new port. |
 | `adb connect` fails after the phone sleeps or restarts | The wireless-debugging port changes. Connect again with the new port. |
