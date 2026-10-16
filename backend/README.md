@@ -26,7 +26,7 @@ On first start PocketBase prints a link to create the first superuser (dashboard
 bin/pocketbase superuser upsert you@example.com 'a-strong-password' --dir pb_data
 ```
 
-A superuser is an operator account for this dashboard. Staff log in to the apps with accounts in the `users` collection instead. Each account has a `role` (`meter_reader`, `office` or `admin`) and an `active` flag. Admins create and edit staff, set their role and password, and deactivate them; other staff can only see their own account. A deactivated account can't log in, and its existing sessions stop working. Staff are never deleted through the API. For local development, create the first admin staff user like this:
+A superuser is an operator account for this dashboard. Staff log in to the apps with accounts in the `users` collection instead. Each account has a `role` (`meter_reader`, `office` or `admin`) and an `active` flag. Admins create and edit staff, set their role and password, and deactivate them; other staff can only see their own account. A deactivated account can't log in, and its existing sessions stop working. A session lasts 45 days, so a meter reader who opens the field app once a monthly round stays logged in; each app start renews it. Staff are never deleted through the API. For local development, create the first admin staff user like this:
 
 ```bash
 cp .env.example .env   # then change the email and password in .env

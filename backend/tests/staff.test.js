@@ -119,6 +119,15 @@ module.exports = ({ test, expect, ids, guest, as, createStaff, PASSWORD }) => {
     expect(guest.view("users", admin.id)).toHaveStatus(404)
   })
 
+  test("a login lasts 45 days, so a meter reader stays logged in from one monthly round to the next", () => {
+    const reader = createStaff({ role: "meter_reader" })
+
+    const token = guest.login(reader.email(), PASSWORD).body.token
+    const lifetime = $security.parseUnverifiedJWT(token).exp - Math.floor(Date.now() / 1000)
+
+    expect(Math.round(lifetime / 86400)).toBe(45)
+  })
+
   test("a wrong password is rejected", () => {
     const reader = createStaff({ role: "meter_reader" })
 
