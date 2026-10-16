@@ -1,27 +1,14 @@
-import type { Role, Staff } from './auth'
+import type { Staff } from './auth'
 
-const roleLabels: Record<Role, string> = {
-  meter_reader: 'เจ้าหน้าที่จดมาตร',
-  office: 'เจ้าหน้าที่สำนักงาน',
-  admin: 'ผู้ดูแลระบบ',
-}
-
-interface HomeProps {
-  staff: Staff
-  onLogout: () => void
-}
-
-/** Placeholder home screen until the admin's real pages arrive (#3 onward). */
-export function Home({ staff, onLogout }: HomeProps) {
+export function Home({ staff }: { staff: Staff }) {
   return (
-    <main>
-      <h1>Watney Admin</h1>
-      <p>
-        เข้าสู่ระบบในชื่อ <strong>{staff.name || staff.email}</strong> ({roleLabels[staff.role]})
-      </p>
-      <button type="button" onClick={onLogout}>
-        ออกจากระบบ
-      </button>
-    </main>
+    <>
+      <h1>ระบบจัดเก็บค่าน้ำประปาหมู่บ้าน</h1>
+      {staff.role === 'meter_reader' ? (
+        <p>เจ้าหน้าที่จดมาตรใช้งานผ่านแอปจดมาตรบนมือถือ</p>
+      ) : (
+        <p>เลือกเมนูด้านบนเพื่อเริ่มใช้งาน</p>
+      )}
+    </>
   )
 }
