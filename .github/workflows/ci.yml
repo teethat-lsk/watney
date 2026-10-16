@@ -37,10 +37,14 @@ jobs:
       - run: make web-check
 
   mobile:
-    name: mobile (format, analyze, test)
+    name: mobile (format, analyze, test, debug APK)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -48,3 +52,11 @@ jobs:
           cache: true
       - run: make mobile-setup
       - run: make mobile-check
+      # Built for the Android emulator's address of the development computer;
+      # for a real phone, build locally with PB_URL set (mobile/README.md).
+      - run: make -C mobile apk
+      - uses: actions/upload-artifact@v7
+        with:
+          name: watney-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

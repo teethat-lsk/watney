@@ -9,5 +9,5 @@ Packages are in `../docs/tech-spec.md` §3. Read the matching source before work
 Other notes:
 
 - **Android first.** The app ID `com.example.watney` is a placeholder until the first release.
-- **Backend addresses** for the emulator and a real phone: `../backend/README.md`.
+- **Backend address** is built in per build (`PB_URL`): `README.md` "Backend address". Phone networking on WSL: `../backend/README.md`.
 - **Done** means `make check` passes (format, analyze, test).
