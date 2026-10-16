@@ -5,7 +5,9 @@ import { vi } from 'vitest'
 import type { Api } from './api'
 import App from './App'
 import type { Auth, Staff } from './auth'
+import type { Customer, CustomerRegister, Meter } from './customers'
 import { FormError } from './formError'
+import type { ReadingRoute, RouteDirectory } from './routes'
 import type { StaffAccount, StaffDirectory } from './staff'
 
 export const admin: Staff = { id: 'u1', email: 'admin@example.com', name: 'สมชาย', role: 'admin' }
@@ -32,7 +34,7 @@ export function fakeStaffDirectory(initial: StaffAccount[] = []): StaffDirectory
       if (accounts.some((account) => account.email === email)) {
         throw new FormError({ email: 'validation_not_unique' })
       }
-      const account: StaffAccount = { id: `new${accounts.length + 1}`, email, name, role, active: true }
+      const account: StaffAccount = { id: `new${accounts.length + 1}`, email, name, role, active: true, routes: [] }
       accounts.push(account)
       return { ...account }
     }),
@@ -47,11 +49,130 @@ export function fakeStaffDirectory(initial: StaffAccount[] = []): StaffDirectory
   }
 }
 
+/** Routes kept in memory. Like the backend, it rejects a second route with the same name. */
+export function fakeRouteDirectory(initial: ReadingRoute[] = []): RouteDirectory {
+  const routes = initial.map((route) => ({ ...route }))
+  const checkUnique = (name: string, id?: string) => {
+    if (routes.some((route) => route.name === name && route.id !== id)) {
+      throw new FormError({ name: 'validation_not_unique' })
+    }
+  }
+  return {
+    list: vi.fn(async () => routes.map((route) => ({ ...route }))),
+    create: vi.fn(async (name) => {
+      checkUnique(name)
+      const route = { id: `r${routes.length + 1}`, name }
+      routes.push(route)
+      return { ...route }
+    }),
+    rename: vi.fn(async (id, name) => {
+      checkUnique(name, id)
+      const route = routes.find((candidate) => candidate.id === id)!
+      route.name = name
+      return { ...route }
+    }),
+  }
+}
+
+/**
+ * A customer register kept in memory. Like the backend, it rejects a meter number
+ * that's already used, and a customer becoming active without an active meter.
+ */
+export function fakeCustomerRegister(initial: Customer[] = [], routes: ReadingRoute[] = []): CustomerRegister {
+  const customers: Customer[] = structuredClone(initial)
+  const find = (id: string) => customers.find((customer) => customer.id === id)!
+  const copy = (customer: Customer) => structuredClone(customer)
+  const routeName = (routeId: string) => routes.find((route) => route.id === routeId)?.name ?? ''
+  const hasActiveMeter = (customer: Customer) => customer.meters.some((meter) => meter.status === 'active')
+  let meterCount = 0
+  const newMeter = (meter: Omit<Meter, 'id' | 'status'>): Meter => {
+    if (customers.some((customer) => customer.meters.some((existing) => existing.number === meter.number))) {
+      throw new FormError({ number: 'validation_not_unique' })
+    }
+    meterCount++
+    return { id: `m-new${meterCount}`, ...meter, status: 'active' }
+  }
+
+  return {
+    list: vi.fn(async () => customers.map(copy)),
+    get: vi.fn(async (id) => copy(find(id))),
+    create: vi.fn(async (details, meter) => {
+      const meters = meter ? [newMeter(meter)] : []
+      const customer: Customer = {
+        id: `c-new${customers.length + 1}`,
+        ...details,
+        routeName: routeName(details.routeId),
+        status: meter ? 'active' : 'pending',
+        meters,
+      }
+      customers.push(customer)
+      return copy(customer)
+    }),
+    update: vi.fn(async (id, changes) => {
+      const customer = find(id)
+      if (changes.status === 'active' && customer.status !== 'active' && !hasActiveMeter(customer)) {
+        throw new FormError({ status: 'validation_no_active_meter' })
+      }
+      Object.assign(customer, changes)
+      customer.routeName = routeName(customer.routeId)
+      return copy(customer)
+    }),
+    addMeter: vi.fn(async (customerId, meter) => {
+      const added = newMeter(meter)
+      find(customerId).meters.push(added)
+      return { ...added }
+    }),
+    setMeterStatus: vi.fn(async (meterId, status) => {
+      const customer = customers.find((candidate) => candidate.meters.some((meter) => meter.id === meterId))!
+      const meter = customer.meters.find((candidate) => candidate.id === meterId)!
+      const otherActive = customer.meters.some((other) => other !== meter && other.status === 'active')
+      if (status !== 'active' && customer.status === 'active' && !otherActive) {
+        throw new FormError({ status: 'validation_customer_needs_active_meter' })
+      }
+      meter.status = status
+      return { ...meter }
+    }),
+  }
+}
+
 export function fakeApi(overrides: Partial<Api> = {}): Api {
   return {
     staff: fakeStaffDirectory(),
+    routes: fakeRouteDirectory(),
+    customers: fakeCustomerRegister(),
     ...overrides,
   }
+}
+
+/** Sample data for the customer pages. */
+export const sampleRoutes: ReadingRoute[] = [
+  { id: 'r1', name: 'สาย 1' },
+  { id: 'r2', name: 'สาย 2' },
+]
+
+const sampleMeter = (id: string, number: string, status: 'active' | 'removed' = 'active') => ({
+  id,
+  number,
+  size: '1/2' as const,
+  installedOn: '2026-01-15',
+  startReading: 0,
+  status,
+})
+
+export const sampleCustomers: Customer[] = [
+  { id: 'c1', houseNo: '10', moo: 2, name: 'นายมานะ ใจดี', phone: '0811111111', routeId: 'r1', routeName: 'สาย 1', status: 'active', meters: [sampleMeter('m1', 'WM-001')] },
+  { id: 'c2', houseNo: '9', moo: 2, name: 'นางสมศรี มีสุข', phone: '', routeId: 'r1', routeName: 'สาย 1', status: 'water_cut', meters: [sampleMeter('m2', 'WM-002')] },
+  { id: 'c3', houseNo: '12/3', moo: 1, name: 'นายปิติ ชูใจ', phone: '', routeId: 'r1', routeName: 'สาย 1', status: 'pending', meters: [] },
+  { id: 'c4', houseNo: '2', moo: 2, name: 'นางวีณา รักษ์ดี', phone: '', routeId: 'r1', routeName: 'สาย 1', status: 'cancelled', meters: [sampleMeter('m3', 'WM-003', 'removed')] },
+  { id: 'c5', houseNo: '1', moo: 1, name: 'นายกล้า หาญ', phone: '', routeId: 'r2', routeName: 'สาย 2', status: 'active', meters: [sampleMeter('m5', 'WM-005')] },
+]
+
+/** An Api with the sample routes and customers. */
+export function customerApi() {
+  return fakeApi({
+    customers: fakeCustomerRegister(sampleCustomers, sampleRoutes),
+    routes: fakeRouteDirectory(sampleRoutes),
+  })
 }
 
 /** Renders the app at `path`, logged in as `staff` (or logged out when null). */

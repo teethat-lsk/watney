@@ -10,11 +10,20 @@ export class FormError extends Error {
   }
 }
 
-/** Turns PocketBase's field validation response into a FormError; other errors pass through. */
+type FieldErrors = Record<string, { code?: string }>
+
+/**
+ * Turns PocketBase's field validation response into a FormError; other errors pass through.
+ * A failed batch request reports the field errors of each request that failed; they're merged.
+ */
 export function toFormError(error: unknown): unknown {
   if (!(error instanceof ClientResponseError) || error.status !== 400) return error
-  const data: Record<string, { code?: string }> = error.response?.data ?? {}
-  const fields = Object.fromEntries(Object.entries(data).map(([field, detail]) => [field, detail.code ?? 'invalid']))
+  const data = error.response?.data ?? {}
+  const batch: Record<string, { response?: { data?: FieldErrors } }> | undefined = data.requests
+  const errors: FieldErrors = batch
+    ? Object.assign({}, ...Object.values(batch).map((request) => request.response?.data ?? {}))
+    : data
+  const fields = Object.fromEntries(Object.entries(errors).map(([field, detail]) => [field, detail.code ?? 'invalid']))
   return Object.keys(fields).length > 0 ? new FormError(fields) : error
 }
 

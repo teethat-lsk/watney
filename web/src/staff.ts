@@ -6,6 +6,8 @@ import { toFormError } from './formError'
 /** A staff account as admins manage it. Inactive accounts can't log in. */
 export interface StaffAccount extends Staff {
   active: boolean
+  /** The ids of the routes a meter reader reads. */
+  routes: string[]
 }
 
 export interface NewStaffAccount {
@@ -21,6 +23,7 @@ export interface StaffChanges {
   role?: Role
   password?: string
   active?: boolean
+  routes?: string[]
 }
 
 /** Staff account management. Save failures the user can fix are thrown as FormError. */
@@ -61,5 +64,5 @@ async function save(request: Promise<RecordModel>): Promise<StaffAccount> {
 }
 
 function toAccount(record: RecordModel): StaffAccount {
-  return { ...toStaff(record), active: record.active }
+  return { ...toStaff(record), active: record.active, routes: record.routes ?? [] }
 }

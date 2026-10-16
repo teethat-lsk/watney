@@ -1,16 +1,16 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { StaffAccount } from './staff'
-import { admin, fakeApi, fakeStaffDirectory, renderApp } from './testing'
+import { admin, fakeApi, fakeRouteDirectory, fakeStaffDirectory, renderApp, sampleRoutes } from './testing'
 
 const accounts: StaffAccount[] = [
-  { ...admin, active: true },
-  { id: 'u3', email: 'reader@example.com', name: 'สมปอง', role: 'meter_reader', active: true },
-  { id: 'u4', email: 'old@example.com', name: 'สมใจ', role: 'office', active: false },
+  { ...admin, active: true, routes: [] },
+  { id: 'u3', email: 'reader@example.com', name: 'สมปอง', role: 'meter_reader', active: true, routes: ['r2'] },
+  { id: 'u4', email: 'old@example.com', name: 'สมใจ', role: 'office', active: false, routes: [] },
 ]
 
 function openStaffPage(initial = accounts) {
-  const api = fakeApi({ staff: fakeStaffDirectory(initial) })
+  const api = fakeApi({ staff: fakeStaffDirectory(initial), routes: fakeRouteDirectory(sampleRoutes) })
   renderApp({ staff: admin, api, path: '/staff' })
   return api
 }
@@ -19,9 +19,9 @@ async function row(name: string) {
   return (await screen.findByRole('cell', { name })).closest('tr')!
 }
 
-/** The name, email, role and status cells of a row. */
+/** The name, email, role, routes and status cells of a row. */
 function columns(row: HTMLElement) {
-  return within(row).getAllByRole('cell').slice(0, 4).map((cell) => cell.textContent)
+  return within(row).getAllByRole('cell').slice(0, 5).map((cell) => cell.textContent)
 }
 
 function fill(form: HTMLElement, label: string, value: string) {
@@ -34,8 +34,8 @@ describe('Staff page', () => {
   it('lists staff with their role and whether they can log in', async () => {
     openStaffPage()
 
-    expect(columns(await row('สมปอง'))).toEqual(['สมปอง', 'reader@example.com', 'เจ้าหน้าที่จดมาตร', 'ใช้งาน'])
-    expect(columns(await row('สมใจ'))).toEqual(['สมใจ', 'old@example.com', 'เจ้าหน้าที่สำนักงาน', 'ปิดใช้งาน'])
+    expect(columns(await row('สมปอง'))).toEqual(['สมปอง', 'reader@example.com', 'เจ้าหน้าที่จดมาตร', 'สาย 2', 'ใช้งาน'])
+    expect(columns(await row('สมใจ'))).toEqual(['สมใจ', 'old@example.com', 'เจ้าหน้าที่สำนักงาน', '', 'ปิดใช้งาน'])
   })
 
   it('creates a staff account with a role', async () => {
@@ -80,11 +80,12 @@ describe('Staff page', () => {
     fill(form, 'รหัสผ่านใหม่', 'another-password')
     fireEvent.click(within(form).getByRole('button', { name: 'บันทึก' }))
 
-    expect(columns(await row('สมปองใหม่'))).toEqual(['สมปองใหม่', 'pong@example.com', 'เจ้าหน้าที่สำนักงาน', 'ใช้งาน'])
+    expect(columns(await row('สมปองใหม่'))).toEqual(['สมปองใหม่', 'pong@example.com', 'เจ้าหน้าที่สำนักงาน', 'สาย 2', 'ใช้งาน'])
     expect(api.staff.update).toHaveBeenCalledWith('u3', {
       name: 'สมปองใหม่',
       email: 'pong@example.com',
       role: 'office',
+      routes: ['r2'],
       password: 'another-password',
     })
   })
@@ -97,7 +98,24 @@ describe('Staff page', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'บันทึก' }))
 
     expect(await screen.findByRole('form', { name: 'เพิ่มพนักงาน' })).toBeDefined()
-    expect(api.staff.update).toHaveBeenCalledWith('u3', { name: 'สมปอง', email: 'reader@example.com', role: 'meter_reader' })
+    expect(api.staff.update).toHaveBeenCalledWith('u3', {
+      name: 'สมปอง',
+      email: 'reader@example.com',
+      role: 'meter_reader',
+      routes: ['r2'],
+    })
+  })
+
+  it('assigns routes to a meter reader', async () => {
+    const api = openStaffPage()
+    fireEvent.click(within(await row('สมปอง')).getByRole('button', { name: 'แก้ไข' }))
+    const form = screen.getByRole('form', { name: 'แก้ไขพนักงาน' })
+
+    fireEvent.click(await within(form).findByRole('checkbox', { name: 'สาย 1' }))
+    fireEvent.click(within(form).getByRole('button', { name: 'บันทึก' }))
+
+    expect(await screen.findByRole('cell', { name: 'สาย 1, สาย 2' })).toBeDefined()
+    expect(api.staff.update).toHaveBeenCalledWith('u3', expect.objectContaining({ routes: ['r1', 'r2'] }))
   })
 
   it('deactivates and reactivates a staff account', async () => {
