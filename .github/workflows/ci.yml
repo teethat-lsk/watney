@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   backend:
-    name: backend (migrations, hooks, staff login)
+    name: backend (migrations, hooks, API tests)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

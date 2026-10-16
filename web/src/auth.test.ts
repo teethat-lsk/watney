@@ -46,6 +46,42 @@ describe('pocketbaseAuth', () => {
     expect(auth.current()).toBeNull()
   })
 
+  it('rejects a deactivated account as inactive', async () => {
+    respond(403, { status: 403, message: "The request doesn't satisfy the collection requirements to authenticate.", data: {} })
+    const auth = pocketbaseAuth(new PocketBase('http://pb.test'))
+
+    await expect(auth.login('old@example.com', 'secret-password')).rejects.toEqual(new LoginError('inactive'))
+  })
+
+  it('refreshes a stored session with the current role', async () => {
+    respond(200, { token, record })
+    const pb = new PocketBase('http://pb.test')
+    pb.authStore.save(token, { ...record, role: 'office' })
+
+    expect(await pocketbaseAuth(pb).refresh()).toMatchObject({ role: 'admin' })
+  })
+
+  it('drops a stored session the backend no longer accepts', async () => {
+    const pb = new PocketBase('http://pb.test')
+    pb.authStore.save(token, record)
+    const auth = pocketbaseAuth(pb)
+
+    for (const status of [401, 403]) {
+      respond(status, { status, message: 'Rejected.', data: {} })
+      expect(await auth.refresh()).toBeNull()
+      expect(auth.current()).toBeNull()
+      pb.authStore.save(token, record)
+    }
+  })
+
+  it('keeps the stored session when the backend can\'t be reached to refresh it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('fetch failed'))))
+    const pb = new PocketBase('http://pb.test')
+    pb.authStore.save(token, record)
+
+    expect(await pocketbaseAuth(pb).refresh()).toMatchObject({ id: 'u1', role: 'admin' })
+  })
+
   it('reports a backend that does not answer as unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('fetch failed'))))
     const auth = pocketbaseAuth(new PocketBase('http://pb.test'))

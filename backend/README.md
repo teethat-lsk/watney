@@ -14,7 +14,7 @@ Run in this folder (or `make backend`, `make backend-setup`, `make backend-check
 |---|---|
 | `make setup` | Download the pinned PocketBase into `bin/` |
 | `make dev` | Start PocketBase on `0.0.0.0:8090` (set `PB_HTTP` to change the address) |
-| `make check` | Boot PocketBase on a throwaway data dir with the committed migrations and hooks, then check that a seeded admin can log in and that a wrong password and public sign-up are rejected |
+| `make check` | Boot PocketBase on a throwaway data dir with the committed migrations and hooks, check that a seeded admin can log in, then run the API tests in `tests/` |
 | `make seed` | Create the first admin staff user from `.env`, or update its password and name |
 
 - Dashboard: http://localhost:8090/_/
@@ -26,14 +26,31 @@ On first start PocketBase prints a link to create the first superuser (dashboard
 bin/pocketbase superuser upsert you@example.com 'a-strong-password' --dir pb_data
 ```
 
-A superuser is an operator account for this dashboard. Staff log in to the apps with accounts in the `users` collection instead. Each account has a `role`: `meter_reader`, `office` or `admin`. For local development, create the first admin staff user like this:
+A superuser is an operator account for this dashboard. Staff log in to the apps with accounts in the `users` collection instead. Each account has a `role` (`meter_reader`, `office` or `admin`) and an `active` flag. Admins create and edit staff, set their role and password, and deactivate them; other staff can only see their own account. A deactivated account can't log in, and its existing sessions stop working. Staff are never deleted through the API. For local development, create the first admin staff user like this:
 
 ```bash
 cp .env.example .env   # then change the email and password in .env
 make seed
 ```
 
-`.env` is git-ignored. You can run `make seed` while PocketBase is running, and run it again to change the password. Until #3 adds role-based rules, only superusers can create or edit staff: public sign-up and self-edits are closed.
+`.env` is git-ignored. You can run `make seed` while PocketBase is running, and run it again to change the password (or to reactivate that admin). After that, the admin creates the other staff accounts in the web admin.
+
+## API tests
+
+`tests/` checks the access rules and hooks from outside, the way an app sees them: each test sends HTTP requests as a given role and checks what the API allows. PocketBase runs the tests itself, so they need no extra tools. `make check` boots a throwaway PocketBase, then runs `pocketbase api-tests <url> --hooksDir tests`, which loads every `tests/*.test.js` suite. Fixtures are saved straight into the throwaway database, bypassing the rules; requests go over HTTP, through them.
+
+Every change to an API rule or hook comes with tests here. A suite exports a function that registers tests:
+
+```js
+module.exports = ({ test, expect, ids, guest, as, createStaff, PASSWORD }) => {
+  test("office staff can't create staff", () => {
+    const office = createStaff({ role: "office" })
+    expect(as(office).create("users", { /* … */ })).toHaveStatus(400)
+  })
+}
+```
+
+`as(record)` and `guest` send requests (`list`, `view`, `create`, `update`, `remove`, `login`, `send`); `tests/harness.js` has the rest. When a rule denies a request, PocketBase answers in one of these ways: a list leaves out the records the rule hides, a view or update of a hidden record returns 404, a create returns 400, and an action with no rule at all (superusers only) returns 403.
 
 ## Layout
 
@@ -41,6 +58,7 @@ make seed
 |---|---|---|
 | `pb_migrations/` | yes | Schema migrations (JS). With automigrate on, collection changes made in the dashboard are written here — commit them. |
 | `pb_hooks/` | yes | Server-side JS hooks (`*.pb.js`). `seed.pb.js` adds the `seed` command. |
+| `tests/` | yes | API tests for the access rules and hooks (see above) |
 | `scripts/` | yes | `install-pocketbase.sh`, `serve.sh`, `check.sh`, `seed.sh` |
 | `.env.example` | yes | Keys for `.env`, the local seed credentials |
 | `.env` | no | Your local seed credentials |

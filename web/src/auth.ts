@@ -9,8 +9,8 @@ export interface Staff {
   role: Role
 }
 
-/** Why a login failed: wrong email or password, or the backend can't be reached. */
-export type LoginFailure = 'invalid' | 'unreachable'
+/** Why a login failed: wrong email or password, a deactivated account, or the backend can't be reached. */
+export type LoginFailure = 'invalid' | 'inactive' | 'unreachable'
 
 export class LoginError extends Error {
   readonly reason: LoginFailure
@@ -26,6 +26,12 @@ export interface Auth {
   /** The staff member whose session is stored and not yet expired, if any. */
   current(): Staff | null
   login(email: string, password: string): Promise<Staff>
+  /**
+   * Checks the stored session with the backend and returns the staff member as
+   * they are now (their role may have changed), or null once the backend no
+   * longer accepts the session. If the backend can't be reached, keeps the stored session.
+   */
+  refresh(): Promise<Staff | null>
   logout(): void
 }
 
@@ -45,13 +51,27 @@ export function pocketbaseAuth(pb: PocketBase): Auth {
       }
     },
 
+    async refresh() {
+      try {
+        const { record } = await pb.collection('users').authRefresh()
+        return toStaff(record)
+      } catch (error) {
+        // 401: the token is no longer valid; 403: the account was deactivated.
+        if (error instanceof ClientResponseError && (error.status === 401 || error.status === 403)) {
+          pb.authStore.clear()
+          return null
+        }
+        return this.current()
+      }
+    },
+
     logout() {
       pb.authStore.clear()
     },
   }
 }
 
-function toStaff(record: RecordModel): Staff {
+export function toStaff(record: RecordModel): Staff {
   return {
     id: record.id,
     email: record.email,
@@ -63,6 +83,8 @@ function toStaff(record: RecordModel): Staff {
 function toLoginError(error: unknown): unknown {
   if (!(error instanceof ClientResponseError) || error.isAbort) return error
   if (error.status === 400) return new LoginError('invalid')
+  // The auth rule (`active = true`) rejects deactivated accounts.
+  if (error.status === 403) return new LoginError('inactive')
   // 0: the request never got a response; 5xx: includes the Vite proxy when PocketBase is down.
   if (error.status === 0 || error.status >= 500) return new LoginError('unreachable')
   return error

@@ -16,12 +16,26 @@ For pages that call the backend, start it separately in another terminal: `make 
 
 ## Login
 
-Staff log in with an account from PocketBase's `users` collection. For local development, create the first admin with `make seed` in `../backend` (see its README). The session is kept in the browser's local storage until you log out or it expires.
+Staff log in with an account from PocketBase's `users` collection. For local development, create the first admin with `make seed` in `../backend` (see its README). The session is kept in the browser's local storage until you log out or it expires. On start, the admin checks a stored session with the backend: it picks up a changed role, and goes back to the login form if the account was deactivated. A deactivated account gets its own message at login.
 
 The admin calls PocketBase at its own origin (`/api/…`). In development, the Vite dev server forwards `/api` to http://localhost:8090 (`vite.config.ts`). In production, PocketBase serves the built admin itself. Either way, no backend URL needs configuring. If PocketBase isn't running, the login form says it can't reach the server.
+
+## Pages and roles
+
+Each page in `src/App.tsx` lists the roles that may use it. The menu shows only those pages, and opening another one by its URL says there's no access. The backend's access rules enforce the same limits, so hiding a menu is only a convenience.
+
+| Page | Roles |
+|---|---|
+| พนักงาน (`/staff`): create staff, set their role and password, deactivate them | admin |
+
+## Code
 
 | File | What |
 |---|---|
 | `src/auth.ts` | The `Auth` interface and its PocketBase implementation. It turns SDK errors into `invalid` or `unreachable`. |
-| `src/LoginForm.tsx`, `src/Home.tsx` | Login form, and the placeholder home screen that shows who is logged in |
-| `src/App.tsx` | Shows one or the other; takes an `Auth`, so tests pass a fake |
+| `src/api.ts` | The `Api` interface: one repository per kind of data (`staff.ts`, …), each with a PocketBase implementation |
+| `src/formError.ts` | Turns PocketBase field validation errors into a `FormError`, and picks the Thai message to show |
+| `src/App.tsx` | The login form, or the pages for the logged-in role. It takes an `Auth` and an `Api`, so tests pass fakes (`src/testing.tsx`). |
+| `src/Layout.tsx`, `src/Home.tsx`, `src/*Page.tsx` | The menu and header, and the pages |
+
+Data is fetched and cached with React Query; routing uses React Router.
