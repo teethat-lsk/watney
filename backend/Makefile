@@ -1,4 +1,4 @@
-.PHONY: setup dev check
+.PHONY: setup dev check seed
 
 setup:
 	scripts/install-pocketbase.sh
@@ -8,3 +8,6 @@ dev:
 
 check:
 	scripts/check.sh
+
+seed:
+	scripts/seed.sh

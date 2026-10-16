@@ -278,7 +278,14 @@ You can also create the superuser from the command line:
 backend/bin/pocketbase superuser upsert you@example.com 'a-strong-password' --dir backend/pb_data
 ```
 
-A superuser is an operator account for the PocketBase dashboard, not an app login (tech-spec §8). Staff logins for the admin and the field app come with issue #2. It adds a seed command that creates the first admin staff user from a git-ignored `.env` file, with `.env.example` listing the keys.
+A superuser is an operator account for the PocketBase dashboard, not an app login (tech-spec §8). To log in to the web admin, create the first admin staff user. It reads its email and password from a git-ignored `backend/.env`:
+
+```bash
+cp backend/.env.example backend/.env   # then change the email and password
+make backend-seed                      # run it again later to change the password
+```
+
+Then run `make backend` and `make web`, open http://localhost:5173, and log in with those credentials.
 
 ## 5. Daily startup
 
@@ -363,7 +370,7 @@ The emulator can't run inside this WSL setup, because there's no `/dev/kvm`. You
 | `types.d.ts` | type definitions for hooks (§3.4) |
 
 - **Browse and edit data** in the dashboard. Collection changes you make there are written as migration files into `backend/pb_migrations/`. Commit those files so everyone gets the same schema.
-- **Reset:** stop PocketBase, run `rm -rf backend/pb_data`, then start it again. The migrations rebuild the schema. Create the superuser again, and re-seed once #2's seed command exists.
+- **Reset:** stop PocketBase, run `rm -rf backend/pb_data`, then start it again. The migrations rebuild the schema. Create the superuser again, and run `make backend-seed` again.
 
 **Phone**: the app's own SQLite database (Drift). To reset it, use **Settings → Apps → Watney → Storage → Clear storage**, or run `adb shell pm clear com.example.watney`.
 

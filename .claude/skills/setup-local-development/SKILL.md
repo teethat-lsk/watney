@@ -89,7 +89,7 @@ Then, for the backend:
 
 1. Start `make backend` in the background.
 2. Confirm `curl -fsS http://localhost:8090/api/health` answers.
-3. Hand the user the superuser command from the doc's §4 to run. They choose the email and password.
+3. Hand the user the doc's §4 commands to run: the superuser command, and the admin staff user (`cp backend/.env.example backend/.env`, edit it, `make backend-seed`). They choose every email and password.
 
 For mobile:
 

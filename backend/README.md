@@ -8,13 +8,14 @@ The PocketBase version is pinned in [`.pocketbase-version`](.pocketbase-version)
 
 ## Commands
 
-Run in this folder (or `make backend`, `make backend-setup`, `make backend-check` from the repo root):
+Run in this folder (or `make backend`, `make backend-setup`, `make backend-check`, `make backend-seed` from the repo root):
 
 | Command | What it does |
 |---|---|
 | `make setup` | Download the pinned PocketBase into `bin/` |
 | `make dev` | Start PocketBase on `0.0.0.0:8090` (set `PB_HTTP` to change the address) |
-| `make check` | Boot PocketBase on a throwaway data dir with the committed migrations and hooks |
+| `make check` | Boot PocketBase on a throwaway data dir with the committed migrations and hooks, then check that a seeded admin can log in and that a wrong password and public sign-up are rejected |
+| `make seed` | Create the first admin staff user from `.env`, or update its password and name |
 
 - Dashboard: http://localhost:8090/_/
 - REST API: http://localhost:8090/api/ (health check: `/api/health`)
@@ -25,12 +26,24 @@ On first start PocketBase prints a link to create the first superuser (dashboard
 bin/pocketbase superuser upsert you@example.com 'a-strong-password' --dir pb_data
 ```
 
+A superuser is an operator account for this dashboard. Staff log in to the apps with accounts in the `users` collection instead. Each account has a `role`: `meter_reader`, `office` or `admin`. For local development, create the first admin staff user like this:
+
+```bash
+cp .env.example .env   # then change the email and password in .env
+make seed
+```
+
+`.env` is git-ignored. You can run `make seed` while PocketBase is running, and run it again to change the password. Until #3 adds role-based rules, only superusers can create or edit staff: public sign-up and self-edits are closed.
+
 ## Layout
 
 | Path | In git | Purpose |
 |---|---|---|
 | `pb_migrations/` | yes | Schema migrations (JS). With automigrate on, collection changes made in the dashboard are written here — commit them. |
-| `pb_hooks/` | yes | Server-side JS hooks (`*.pb.js`) |
+| `pb_hooks/` | yes | Server-side JS hooks (`*.pb.js`). `seed.pb.js` adds the `seed` command. |
+| `scripts/` | yes | `install-pocketbase.sh`, `serve.sh`, `check.sh`, `seed.sh` |
+| `.env.example` | yes | Keys for `.env`, the local seed credentials |
+| `.env` | no | Your local seed credentials |
 | `pb_data/` | no | Local SQLite database, uploaded files, logs |
 | `bin/` | no | The downloaded PocketBase binary |
 
