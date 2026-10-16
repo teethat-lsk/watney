@@ -1,0 +1,5 @@
+# PocketBase binary (installed by scripts/install-pocketbase.sh)
+bin/
+
+# Local data: SQLite database, uploaded files, logs
+pb_data/
