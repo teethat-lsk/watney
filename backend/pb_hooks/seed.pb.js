@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // `pocketbase seed`: create the first admin staff user for local development,
-// or update its password, name and role if it already exists. Run it through
+// or update its password, name and role (and reactivate it) if it already exists. Run it through
 // scripts/seed.sh, which loads the credentials from .env and applies migrations first.
 $app.rootCmd.addCommand(new Command({
   use: "seed",
@@ -27,6 +27,7 @@ $app.rootCmd.addCommand(new Command({
       record.set("name", name)
     }
     record.set("role", "admin")
+    record.set("active", true)
     record.setVerified(true)
     $app.save(record)
 

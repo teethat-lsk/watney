@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Boot PocketBase on a throwaway data dir with the committed migrations and hooks,
-# then smoke-test staff login against it. Fails on the first broken step.
+# check that the seed command's admin can log in, then run the API tests in tests/
+# (access rules and hooks) against it. Fails on the first broken step.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -28,22 +29,15 @@ if ! curl -fsS "$base/api/health" > /dev/null 2>&1; then
 fi
 echo "PocketBase started with the committed migrations and hooks."
 
-expect_status() {
-  local want=$1 method=$2 path=$3 body=$4 got
-  got="$(curl -s -o /dev/null -w '%{http_code}' -X "$method" "$base$path" \
-    -H 'Content-Type: application/json' -d "$body")"
-  if [[ "$got" != "$want" ]]; then
-    echo "$method $path: expected HTTP $want, got $got" >&2
-    exit 1
-  fi
-}
-
 WATNEY_SEED_ADMIN_EMAIL=check@example.com WATNEY_SEED_ADMIN_PASSWORD=check-password \
   ./bin/pocketbase seed --dir "$data" --migrationsDir pb_migrations --hooksDir pb_hooks > /dev/null
+status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/api/collections/users/auth-with-password" \
+  -H 'Content-Type: application/json' -d '{"identity":"check@example.com","password":"check-password"}')"
+if [[ "$status" != 200 ]]; then
+  echo "The seeded admin can't log in: HTTP $status" >&2
+  exit 1
+fi
+echo "The seeded admin logs in."
 
-login=/api/collections/users/auth-with-password
-expect_status 200 POST "$login" '{"identity":"check@example.com","password":"check-password"}'
-expect_status 400 POST "$login" '{"identity":"check@example.com","password":"wrong-password"}'
-expect_status 403 POST /api/collections/users/records \
-  '{"email":"signup@example.com","password":"signup-password","passwordConfirm":"signup-password","role":"admin"}'
-echo "Seeded admin logs in; a wrong password and public sign-up are rejected."
+# The API tests save their fixtures into the same data dir and call the server over HTTP.
+./bin/pocketbase api-tests "$base" --dir "$data" --hooksDir tests 2>&1 | sed -E 's/^[0-9\/]+ [0-9:]+ //'
