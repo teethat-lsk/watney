@@ -61,7 +61,7 @@ flowchart LR
 | PocketBase | 0.40.5, pinned in `backend/.pocketbase-version` | backend and server database | backend (web and mobile need it running) |
 | Node.js | 20 or newer (LTS) | web admin tooling | web |
 | pnpm | 11 | web package manager | web |
-| Flutter SDK (includes Dart) | stable, with Dart 3.13+ | field app | mobile |
+| Flutter SDK (includes Dart) | stable; match `flutter-version` in `.github/workflows/ci.yml` so format and analyze agree with CI (needs Dart 3.13+) | field app | mobile |
 | JDK | 21 (17+ required) | Android Gradle builds | mobile |
 | Android SDK: cmdline-tools, platform-tools (`adb`), platform 36, NDK 28.2.13676358 | — | build and install the APK | mobile |
 | Android phone | Android 11+ for Wi-Fi debugging (the app itself needs Android 7.0, API 24) | run the field app | mobile |

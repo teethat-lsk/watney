@@ -7,7 +7,7 @@ description: Local development setup walkthrough — probe every tool docs/local
 
 Walk the user through getting their machine ready to run Watney, one tool at a time. [`docs/local-development.md`](../../../docs/local-development.md) is the source of truth for what to install, which version, and how. This skill is the process.
 
-The **target** is the version a tool must have: the doc's §2 table, overridden by a project file wherever the two disagree (`backend/.pocketbase-version`, the `environment.sdk` constraint in `mobile/pubspec.yaml`, `web/package.json`, the Makefiles). A doc row that disagrees with a project file is **stale**. Collect stale rows for the report.
+The **target** is the version a tool must have: the doc's §2 table, overridden by a project file wherever the two disagree (`backend/.pocketbase-version`, the `environment.sdk` constraint in `mobile/pubspec.yaml`, `web/package.json`, the Makefiles, and `.github/workflows/ci.yml`). For Flutter, the target is CI's exact `flutter-version`: `dart format` and `flutter analyze` can change between releases, so only a matching version gives the same `make mobile-check` result as CI. A doc row that disagrees with a project file is **stale**. Collect stale rows for the report.
 
 Each component (`backend/`, `web/`, `mobile/`) has its own `make setup | dev | check`. From the repo root, the same commands are `make <component>-setup`, `make <component>` and `make <component>-check`. All paths below are relative to the repo root (`git rev-parse --show-toplevel`), and the session may have started inside a component folder.
 
@@ -33,12 +33,13 @@ Read the doc's §2 in full. Then probe every tool row in scope, plus project sta
 
 | Row | Probe | Target |
 |---|---|---|
-| Flutter / Dart | `flutter --version` | Dart version satisfies `environment.sdk` in `mobile/pubspec.yaml` |
+| Flutter / Dart | `flutter --version` | Flutter matches `flutter-version` in `.github/workflows/ci.yml` |
 | JDK | `flutter doctor -v`, the "Java binary at" and "Java version" lines. This is the JDK Flutter builds with, which can differ from `java -version`. | doc §2.5 |
 | Android SDK | `flutter doctor -v` (Android toolchain section), then `sdkmanager --list_installed` for the platform and NDK versions | doc §2.6 |
 | PocketBase | `backend/bin/pocketbase --version` | exact match with `backend/.pocketbase-version` |
 | Web packages | `web/node_modules/.modules.yaml` exists and is not older than `web/pnpm-lock.yaml` | — |
 | Mobile packages | `mobile/.dart_tool/package_config.json` exists and is not older than `mobile/pubspec.lock` | — |
+| Seed credentials | `backend/.env` sets both `WATNEY_SEED_ADMIN_EMAIL` and `WATNEY_SEED_ADMIN_PASSWORD` to non-empty values. Check with `grep -c`, which counts lines without showing the values. | doc §4 |
 | Phone (mobile) | `adb devices` lists a device | doc §6.1 |
 | Phone → backend (WSL on Windows 10) | `netsh.exe interface portproxy show v4tov4` maps port 8090 to WSL's current IP (`hostname -I`) | doc §6.2 |
 
@@ -90,6 +91,7 @@ Then, for the backend:
 1. Start `make backend` in the background.
 2. Confirm `curl -fsS http://localhost:8090/api/health` answers.
 3. Hand the user the doc's §4 commands to run: the superuser command, and the admin staff user (`cp backend/.env.example backend/.env`, edit it, `make backend-seed`). They choose every email and password.
+4. When web is in scope, start `make web` in the background too. Have the user log in at http://localhost:5173 with the seeded admin. Their name and role on the home screen prove the whole path works: admin, proxy, PocketBase, migration and seed.
 
 For mobile:
 
@@ -98,7 +100,7 @@ For mobile:
 
 Stop every process you started.
 
-Done when every in-scope component's `-check` passes and the backend health check answers.
+Done when every in-scope component's `-check` passes, the backend health check answers, and (with web in scope) the user has logged in.
 
 ## 6. Report
 
