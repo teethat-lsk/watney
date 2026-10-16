@@ -2,8 +2,6 @@
 
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
-> **Setup note:** This repo isn't a git repository yet and has no GitHub remote. Before the `gh` commands below will work, initialise git and connect a GitHub repo — e.g. `git init`, then `gh repo create <owner>/<name> --source=. --remote=origin`. Once a clone has a GitHub remote, `gh` infers the repo automatically.
-
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
